@@ -15,7 +15,7 @@
   --side-bg: #ECF1EA; --side-ink: #24403E; --side-muted: #56706A; --side-on: rgba(62, 138, 122, .13); --side-line: #D3DCD3;
   --side-grid: linear-gradient(rgba(74, 127, 168, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(74, 127, 168, .055) 1px, transparent 1px);
   --sea: #D9E9EE; --land: #F3F1E4; --border: #B9C8BE; --visited: #B4D9C2; --visited-hi: #93C8A8; --grat: rgba(74, 127, 168, .18);
-  --pin: #B4553F; --pin-ring: #fff; --map-ink: #24403E;
+  --pin: #3E7CB1; --pin-home: #24403E; --pin-ring: #fff; --map-ink: #24403E;   /* blue pins, dark home (her pick, 21 Nov; red looked odd) */
   --serif: "Instrument Serif", Georgia, serif; --sans: "Manrope", "Segoe UI", system-ui, sans-serif;
   --radius: 2px; --side-w: 248px;
   --frame: 0 0 0 4px var(--surface), 0 0 0 5px var(--line);   /* the atlas-plate double edge on cards */
@@ -365,7 +365,7 @@ label.drop { cursor: pointer; }
   --side-bg: #1B2625; --side-ink: #E6EEEA; --side-muted: #9FB2AC; --side-on: rgba(143, 211, 190, .14); --side-line: #33423F;
   --side-grid: linear-gradient(rgba(156, 194, 230, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(156, 194, 230, .05) 1px, transparent 1px);
   --sea: #15303A; --land: #2C3A37; --border: #46574F; --visited: #3F7A66; --visited-hi: #4F927B; --grat: rgba(156, 194, 230, .12);
-  --pin: #F0A08C; --pin-ring: #17201F; --map-ink: #E6EEEA;
+  --pin: #8EC1EA; --pin-home: #E6EEEA; --pin-ring: #17201F; --map-ink: #E6EEEA;
   color-scheme: dark;
 }
 :root[data-mode=dark] .stamp { background: #1F2A29; outline-color: #1F2A29; }
@@ -378,9 +378,7 @@ label.drop { cursor: pointer; }
 :root[data-mode=dark] .photo.empty { filter: brightness(.5) saturate(.8); }
 :root[data-mode=dark] .photo.empty span { filter: brightness(2.2); }
 
-/* ---------- trial extras (21 Nov): routes, timeline, search; the small "trial" tag marks them while she decides ---------- */
-.trial-tag { display: inline-block; font: 800 9.5px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--accent2); border: 1px solid currentColor; border-radius: 3px; padding: 3px 5px; vertical-align: middle; margin-left: 4px; }
-.kicker .trial-tag, .fk .trial-tag { margin-left: 2px; }
+/* ---------- extras (21 Nov, she likes them all): routes, timeline, search ---------- */
 .worldmap .route { fill: none; stroke: var(--pin); stroke-width: 1.6; stroke-dasharray: 5 4; stroke-linecap: round; opacity: .75; }
 .worldmap.zoom .route { stroke-width: 2.4; }
 .timeline { list-style: none; margin: 0; padding: 0 0 0 26px; border-left: 2px solid var(--line); }
@@ -410,18 +408,11 @@ label.drop { cursor: pointer; }
 .foot-links { display: flex; gap: 26px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .foot-links .mode-btn { margin: 0; min-height: 44px; }
 
-/* ---------- route styles on the Map page (trial) ---------- */
-.route-style { margin-top: 10px; }
-.map-and-list.has-list { display: grid; grid-template-columns: 1fr 260px; gap: 22px; align-items: start; }
-.route-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 470px; overflow: auto; border-top: 1px solid var(--line); }
-.route-list a { display: flex; flex-direction: column; padding: 8px 10px; text-decoration: none; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
-.route-list a b { font: 400 19px/1.15 var(--serif); }
-.route-list a small { color: var(--muted); font-size: 12px; }
-.route-list a:hover, .route-list a.on, .route-list a.hi { background: var(--accent-soft); border-left-color: var(--pin); }
-.routes-faint .worldmap .route { opacity: .22; }
-.routes-faint.hovering .worldmap .route:not(.hi), .routes-faint.has-on .worldmap .route:not(.chosen):not(.hi) { opacity: .1; }
-.routes-faint .worldmap .route.hi, .routes-faint .worldmap .route.chosen { opacity: 1; stroke-width: 2.6; stroke-dasharray: none; }
-.routes-year .worldmap .route, .routes-pick .worldmap .route { opacity: 1; stroke-width: 2.2; }
+/* ---------- a trip's route from home (on its page) ---------- */
+.worldmap .pin.home .pin-dot { fill: var(--pin-home); }
+.worldmap .pin.home .pin-halo { fill: color-mix(in srgb, var(--pin-home) 22%, transparent); }
+.route-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.route-meta svg { width: 14px; height: 14px; }
 
 /* ---------- firsts, surprise me (trial) ---------- */
 .firsts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 24px; }
@@ -433,7 +424,7 @@ label.drop { cursor: pointer; }
 
 /* ---------- printing a trip or post: just the words, photos and map (trial) ---------- */
 @media print {
-  .side, .foot, .comments, .post-nav, .filters, .more, .skip, .scrim, .route-list { display: none !important; }
+  .side, .foot, .comments, .post-nav, .filters, .more, .skip, .scrim { display: none !important; }
   .shell { display: block; background: none; }
   body { background: #fff; font-size: 11pt; }
   .wrap { max-width: none; padding: 0; }
@@ -442,4 +433,11 @@ label.drop { cursor: pointer; }
   .hero { margin: 0; }
   a { text-decoration: none; }
 }
-@media (max-width: 1100px) { .map-and-list.has-list { grid-template-columns: 1fr; } .route-list { max-height: 300px; } }
+
+/* the framed sections on Stats (Firsts, Trips each year, Which months) keep their space between them (her ask, 21 Nov):
+   the card rule's 5px margin was overriding the section's space above */
+.sec.chart-sec { margin: 34px 5px 5px; }
+.facts { gap: 20px; }
+.facts + .sec.chart-sec { margin-top: 40px; }
+/* Map page: space between the tracker and the country boxes below it (found by the "boxes never touch" check) */
+.tracker { margin-bottom: 32px; }

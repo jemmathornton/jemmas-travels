@@ -103,7 +103,7 @@ function worldMap(pins = [], opts = {}) {
   for (const p of pins) {
     const [x, y] = P(p.lon, p.lat).map(f);
     const label = opts.labels ? `<text x="${x}" y="${(y - 13).toFixed(1)}" text-anchor="middle">${escMap(p.label)}</text>` : "";
-    const body = `<g class="pin"><circle class="pin-halo" cx="${x}" cy="${y}" r="9"/><circle class="pin-dot" cx="${x}" cy="${y}" r="4.5"/>${label}<title>${escMap(p.title || p.label)}</title></g>`;
+    const body = `<g class="pin${p.kind ? " " + p.kind : ""}"><circle class="pin-halo" cx="${x}" cy="${y}" r="9"/><circle class="pin-dot" cx="${x}" cy="${y}" r="4.5"/>${label}<title>${escMap(p.title || p.label)}</title></g>`;
     pinsSvg += p.href ? `<a href="${p.href}" aria-label="${escMap(p.title || p.label)}">${body}</a>` : body;
   }
   const fid = "rough" + (++worldMap.n || (worldMap.n = 1));   // each map its own filter (two maps on a page mustn't share an id)

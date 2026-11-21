@@ -97,7 +97,7 @@ function focusOn(codes, pins = []) {
   else if (tall < wide / 2.4) { const c = (s + n) / 2, h = wide / 2.4 / 2; s = c - h; n = c + h; }
   return [Math.max(-360, w), Math.max(-85, s), Math.min(360, e), Math.min(85, n)];   // may go past 180°: the map draws across it
 }
-// ---------- trial extras (21 Nov, her ask: "mock up and I'll see"): routes, distance, timeline, search ----------
+// ---------- extras (21 Nov; she likes them all): routes, distance, timeline, search ----------
 const HOME_AT = () => D.homeAt || country(D.home).at;
 function tripStops(t) { // where a trip went, in order: the places she named, or else each country's own point
   return t.places && t.places.length ? t.places.map(([, lat, lon]) => [lat, lon]) : t.countries.map(c => country(c).at);
@@ -182,7 +182,7 @@ function thisTimeOfYear(now = new Date()) {
   const m = now.getMonth() + 1, y = now.getFullYear();
   const ts = TRIPS.filter(t => tripMonths(t).some(([ty, tm]) => tm === m && ty !== y));
   if (!ts.length) return "";
-  return `<section class="sec"><h2 class="sec-h">This time of year <span class="trial-tag">trial</span></h2><p class="note">Trips in ${MONTHS[m - 1]} in other years.</p><div class="trip-grid">${ts.map(tripCard).join("")}</div></section>`;
+  return `<section class="sec"><h2 class="sec-h">This time of year</h2><p class="note">Trips in ${MONTHS[m - 1]} in other years.</p><div class="trip-grid">${ts.map(tripCard).join("")}</div></section>`;
 }
 function surprisePost() { // a random post that isn't a placeholder, or a random trip if there are none yet
   const real = D.posts.filter(p => !p.placeholder);
@@ -198,7 +198,7 @@ function pageHome() {
       <h1>Jemma’s <em>Travels</em></h1>
       <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
     </section>
-    ${statTiles([[TRIPS.length, "trips", "#/trips"], [VISITED.length, "countries", "#/countries"], [continents.size, "continents", "#/countries"], [YEARS.length, "years travelled", "#/stats"]])}
+    ${statTiles([[TRIPS.length, "trips", "#/trips"], [VISITED.length, "countries", "#/map"], [continents.size, "continents", "#/map"], [YEARS.length, "years travelled", "#/stats"]])}
     ${thisTimeOfYear()}
     ${latest.length ? `<section class="sec"><h2 class="sec-h">Latest posts</h2><div class="post-tiles">${latest.map(postTile).join("")}</div></section>` : ""}
     <section class="sec"><h2 class="sec-h">Trips by year</h2>${yearGroups(TRIPS, "h3")}</section>`;
@@ -211,6 +211,15 @@ function pageTrips(y) {
   const ts = y ? TRIPS.filter(t => year(t) === y) : TRIPS;
   return head(y ? `${y}` : "Trips", y ? `${plural(ts.length, "trip")}` : `${plural(TRIPS.length, "trip")} · newest first`, yearChips(y)) + yearGroups(ts);
 }
+function homePin() {
+  const h = HOME_AT();
+  return { lat: h[0], lon: h[1], label: D.homeTown || "Home", title: `Home: ${D.homeTown || country(D.home).name}`, kind: "home" };
+}
+function tripMap(t) { // the trip's countries coloured in, its places, and its route from home and back
+  const pins = placePins([t]), stops = tripStops(t).map(([lat, lon]) => ({ lat, lon }));
+  return worldMap([homePin(), ...pins], { ...mapOpts(t.countries), focus: focusOn(t.countries, [homePin(), ...pins, ...stops]), labels: true,
+    routes: [{ stops: tripRoute(t), id: t.id, title: `${t.title}: from ${D.homeTown || "home"} and back` }], aria: `Map of ${t.title} and the way there from ${D.homeTown || "home"}` });
+}
 function pageTrip(id) {
   const t = tripById[id]; if (!t) return notFound();
   const posts = postsOf(id);
@@ -219,8 +228,9 @@ function pageTrip(id) {
     <header class="trip-head">
       <div class="trip-head-text"><div class="kicker">${icon("calendar")}${esc(fmtRange(t))}</div><h1>${esc(t.title)}</h1>
         <div class="chips">${chips(t.countries)}</div>
-        <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div></div>
-      <div class="trip-map">${worldMap(placePins([t]), { ...mapOpts(t.countries), focus: focusOn(t.countries, placePins([t])), labels: true, routes: (t.places || []).length > 1 ? [tripStops(t)] : [], aria: `Map of ${t.title}` })}</div>
+        <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div>
+        <div class="meta route-meta">${icon("route")}About ${(Math.round(tripKm(t) / 100) * 100).toLocaleString("en-GB")} km from ${esc(D.homeTown || "home")} and back, as the crow flies</div></div>
+      <div class="trip-map">${tripMap(t)}</div>
     </header>
     ${posts.length ? `<h2 class="sr-only">Posts</h2><div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
       : `<div class="empty-note">${icon("pen")}<p>No posts for this trip yet.</p></div>`}`;
@@ -266,75 +276,33 @@ function pagePost(id, slug) {
         ${next ? `<a class="next" href="#/trip/${id}/${next.slug}"><span><small>${esc(dayLabel(next))}</small>${ph(next.title)}</span>${icon("chevron-right")}</a>` : "<span></span>"}</nav>
     </article>${comments()}`;
 }
-// Routes, three ways to try (21 Nov, her note: every route at once is a bit much):
-//   faint  all routes pale; point at a trip in the list (or its line) to bring it forward
-//   year   one year at a time (newest first), year buttons above the map
-//   pick   no lines until a trip is chosen from the list; then just that one
-const ROUTE_STYLES = { faint: "A · All, faint", year: "B · One year at a time", pick: "C · Pick a trip" };
-function pageMap(view, style, which) {
-  const byCont = {};
-  for (const c of VISITED) (byCont[country(c).continent] ||= []).push(c);
-  const routes = view === "routes";
-  style = ROUTE_STYLES[style] ? style : "faint";
-  const tabs = `<div class="filters"><a class="fchip ${routes ? "" : "on"}" href="#/map">Countries</a><a class="fchip ${routes ? "on" : ""}" href="#/map/routes">Routes from home <span class="trial-tag">trial</span></a></div>`;
-  const home = HOME_AT(), homePin = { lat: home[0], lon: home[1], label: D.homeTown || "Home", title: `Home: ${D.homeTown || country(D.home).name}` };
-  let shown = TRIPS, extra = "", note = "Countries visited are coloured in; pins are places named on a trip.";
-  if (routes) {
-    const styleRow = `<div class="filters route-style" aria-label="Ways to show routes">${Object.entries(ROUTE_STYLES).map(([k, v]) => `<a class="fchip ${k === style ? "on" : ""}" href="#/map/routes/${k}">${v}</a>`).join("")}</div>`;
-    if (style === "year") {
-      const y = YEARS.includes(which) ? which : YEARS[0];
-      shown = TRIPS.filter(t => year(t) === y);
-      extra = styleRow + `<div class="filters">${YEARS.map(x => `<a class="fchip ${x === y ? "on" : ""}" href="#/map/routes/year/${x}">${x}</a>`).join("")}</div>`;
-    } else if (style === "pick") {
-      const t = tripById[which];
-      shown = t ? [t] : [];
-      extra = styleRow;
-    } else extra = styleRow;
-    note = style === "pick" && !shown.length ? "Choose a trip below to see its route." : `Trips drawn from ${esc(D.homeTown || "home")} to the places named on them (or the middle of each country) and back, the shortest way round the world.`;
-  }
-  const routeList = routes && style !== "year" ? `<ul class="route-list">${TRIPS.map(t => `<li><a href="#/map/routes/${style === "pick" ? "pick" : "faint"}/${t.id}" data-trip="${t.id}" class="${which === t.id ? "on" : ""}"><b>${esc(t.title)}</b><small>${esc(fmtRange(t))} · about ${(Math.round(tripKm(t) / 100) * 100).toLocaleString("en-GB")} km</small></a></li>`).join("")}</ul>` : "";
-  const map = worldMap(routes ? [homePin, ...placePins(shown)] : placePins(TRIPS), { ...mapOpts(VISITED),
-    routes: routes ? shown.map(t => ({ stops: tripRoute(t), id: t.id, title: `${t.title} · ${fmtRange(t)}` })) : [], aria: routes ? "Trips’ routes from home" : "Every country visited" });
-  return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`, tabs + extra) +
-    `<div class="map-and-list${routeList ? " has-list" : ""}${routes ? " routes-" + style : ""}${which && style === "faint" ? " has-on" : ""}"><div class="big-map">${map}</div>${routeList}</div>
-    <p class="note map-note">${icon("info")}${note} Map: Natural Earth.</p>
-    ${routes ? "" : `<h2 class="sr-only">By continent</h2><div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
-      const ts = TRIPS.filter(t => t.countries.includes(c));
-      return `<li><a href="#/country/${c}">${esc(country(c).name)}</a><span>${ts.map(t => year(t)).join(", ")}</span></li>`;
-    }).join("")}</ul></section>`).join("")}</div>`}`;
+// Map and Countries as one page (her pick, 21 Nov): the map, then the countries tracker, then the countries visited
+function pageMap() {
+  return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`) +
+    `<div class="big-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), aria: "Every country visited" })}</div>
+    <p class="note map-note">${icon("info")}Countries visited are coloured in; pins are places named on a trip. Each trip’s page shows its route from ${esc(D.homeTown || "home")}. Map: Natural Earth.</p>
+    <section class="sec"><h2 class="sec-h">Countries visited</h2>${countriesBody()}</section>`;
 }
-function markChosenRoute() {
-  const on = document.querySelector(".routes-faint .route-list a.on"); if (!on) return;
-  document.querySelectorAll(`.routes-faint [data-trip="${CSS.escape(on.dataset.trip)}"]`).forEach(x => x.classList.add("chosen"));
-}
-// pointing at a trip in the list (or its line) brings that route forward ("All, faint")
-document.addEventListener("pointerover", e => {
-  const el = e.target.closest?.("[data-trip]"); const box = document.querySelector(".routes-faint"); if (!box) return;
-  box.querySelectorAll(".hi").forEach(x => x.classList.remove("hi"));
-  if (el) box.querySelectorAll(`[data-trip="${CSS.escape(el.dataset.trip)}"]`).forEach(x => x.classList.add("hi"));
-  box.classList.toggle("hovering", !!el);
-});
-document.addEventListener("focusin", e => { const el = e.target.closest?.(".route-list [data-trip]"); if (el) el.dispatchEvent(new PointerEvent("pointerover", { bubbles: true })); });
-function pageCountries() {
+function countriesBody() {
   const pct = VISITED.length / TOTAL_COUNTRIES;
   const conts = Object.entries(D.continentTotals).map(([k, n]) => [k, VISITED.filter(c => country(c).continent === k).length, n]);
   const C = 2 * Math.PI * 52;
-  return head("Countries", "Tracker") + `<div class="tracker">
+  return `<div class="tracker">
     <div class="ring"><svg viewBox="0 0 120 120" role="img" aria-label="${VISITED.length} of ${TOTAL_COUNTRIES} countries"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fg" cx="60" cy="60" r="52" stroke-dasharray="${(C * pct).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 60 60)"/></svg>
       <div><b>${VISITED.length}</b><span>of ${TOTAL_COUNTRIES} countries</span><small>${(pct * 100).toFixed(1)}% of the world</small></div></div>
     <div class="cont-bars">${conts.map(([k, v, n]) => `<div class="cbar" title="${esc(k)}: ${v} of ${n}"><span class="cname">${esc(k)}</span><span class="track"><i style="width:${Math.max(v ? 2 : 0, v / n * 100)}%"></i></span><span class="cval">${v} <small>of ${n}</small></span></div>`).join("")}</div>
   </div>
-  <section class="sec"><h2 class="sec-h">Visited</h2><div class="country-grid">${VISITED.map(c => {
+  <h3 class="sr-only">Each country</h3><div class="country-grid">${VISITED.map(c => {
     const ts = TRIPS.filter(t => t.countries.includes(c));
     return `<a class="ctile" href="#/country/${c}"><span class="code">${c}</span><b>${esc(country(c).name)}</b><small>${plural(ts.length, "trip")} · ${[...new Set(ts.map(year))].join(", ")}</small></a>`;
   }).join("")}</div>
-  <p class="note">Home (${esc(country(D.home).name)}) isn’t counted. Out of 195: the UN’s members plus the Vatican and Palestine.</p></section>`;
+  <p class="note">Home (${esc(country(D.home).name)}) isn’t counted. Out of 195: the UN’s members plus the Vatican and Palestine.</p>`;
 }
 function pageCountry(code) {
   const k = D.countries[code]; if (!k) return notFound();
   const ts = TRIPS.filter(t => t.countries.includes(code));
   const pins = placePins(ts).filter(p => inCountry(code, p.lat, p.lon));   // only the places that are in this country
-  return `<nav class="crumbs"><a href="#/countries">Countries</a> › ${esc(k.continent)}</nav>` +
+  return `<nav class="crumbs"><a href="#/map">Map</a> › ${esc(k.continent)}</nav>` +
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
     `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins), labels: true, aria: `Map of ${k.name}` })}</div>
     <h2 class="sr-only">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div>`;
@@ -347,7 +315,7 @@ function firsts() { // the first trip to each continent and to each country, old
     seen.add(k); rows.push([k, t]);
   }
   if (!rows.length) return "";
-  return `<section class="sec chart-sec"><h2 class="sec-h">Firsts <span class="trial-tag">trial</span></h2><ol class="firsts">${rows.map(([k, t]) =>
+  return `<section class="sec chart-sec"><h2 class="sec-h">Firsts</h2><ol class="firsts">${rows.map(([k, t]) =>
     `<li><span class="fk">First time in ${esc(k)}</span><a href="#/trip/${t.id}">${esc(t.title)}</a><small>${esc(fmtRange(t))}</small></li>`).join("")}</ol></section>`;
 }
 function pageStats() {
@@ -380,7 +348,7 @@ function pageStats() {
       ${fact("First on record", esc(first.title), esc(fmtRange(first)))}
       ${fact("Longest gap", plural(gap[0], "year"), `${gap[1]} to ${gap[2]}`)}
       ${fact("Written so far", plural(posts, "post"), `${plural(days, "day")} · ${plural(photos, "photo")}`)}
-      ${(() => { const total = TRIPS.reduce((n, t) => n + tripKm(t), 0); return fact(`Distance travelled <span class="trial-tag">trial</span>`, `${(Math.round(total / 1000) * 1000).toLocaleString("en-GB")} km`, `about ${(total / 40075).toFixed(1)} times round the world, as the crow flies from ${esc(D.homeTown || "home")}`); })()}
+      ${(() => { const total = TRIPS.reduce((n, t) => n + tripKm(t), 0); return fact(`Distance travelled`, `${(Math.round(total / 1000) * 1000).toLocaleString("en-GB")} km`, `about ${(total / 40075).toFixed(1)} times round the world, as the crow flies from ${esc(D.homeTown || "home")}`); })()}
     </div>
     ${firsts()}
     <section class="sec chart-sec"><h2 class="sec-h">Trips each year</h2>
@@ -461,7 +429,7 @@ function pageTimeline() {
     if (YEARS.includes(String(y))) { if (gap) rows.push(gap); gap = null; rows.push(String(y)); }
     else gap = gap ? [gap[0], y] : [y, y];
   }
-  return head("Timeline", `Every trip, newest first <span class="trial-tag">trial</span>`) + `<ol class="timeline">${rows.map(y => {
+  return head("Timeline", `Every trip, newest first`) + `<ol class="timeline">${rows.map(y => {
     if (Array.isArray(y)) return `<li class="tl-gap"><span class="tl-year">${y[1] === y[0] ? y[0] : `${y[1]} – ${y[0]}`}: no trips</span></li>`;
     const ts = TRIPS.filter(t => year(t) === y);
     return `<li class="tl-year-row"><h2 class="tl-year"><a href="#/year/${y}">${y}</a></h2><ol>${ts.map(t => `<li class="tl-trip">
@@ -473,39 +441,24 @@ function pageTimeline() {
 function pageSearch(q) {
   q = String(q || "").trim();
   const box = `<form class="search-big" role="search" onsubmit="event.preventDefault(); location.hash = '#/search/' + encodeURIComponent(this.q.value.trim())"><input name="q" type="search" value="${esc(q)}" placeholder="A place, a country, a word from a post…" aria-label="Search"><button class="primary" type="submit">${icon("search")}Search</button></form>`;
-  if (!q) return head("Search", `Trips, posts and countries <span class="trial-tag">trial</span>`) + box;
+  if (!q) return head("Search", `Trips, posts and countries`) + box;
   const norm = x => String(x || "").replace(/^\[placeholder\]/, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const words = norm(q).split(/\s+/).filter(Boolean), hit = text => words.every(w => norm(text).includes(w));
   const trips = TRIPS.filter(t => hit([t.title, fmtRange(t), ...t.countries.map(c => country(c).name), ...(t.places || []).map(p => p[0])].join(" ")));
   const posts = D.posts.filter(p => !p.placeholder && hit([p.title, p.place, ...p.text.filter(x => !isPhotoMark(x))].join(" ")));
   const cs = VISITED.filter(c => hit(country(c).name));
   const n = trips.length + posts.length + cs.length;
-  return head("Search", `${plural(n, "result")} for “${esc(q)}” <span class="trial-tag">trial</span>`) + box +
+  return head("Search", `${plural(n, "result")} for “${esc(q)}”`) + box +
     (cs.length ? `<section class="sec"><h2 class="sec-h">Countries</h2><div class="country-grid">${cs.map(c => `<a class="ctile" href="#/country/${c}"><span class="code">${c}</span><b>${esc(country(c).name)}</b></a>`).join("")}</div></section>` : "") +
     (trips.length ? `<section class="sec"><h2 class="sec-h">Trips</h2><div class="trip-grid">${trips.map(tripCard).join("")}</div></section>` : "") +
     (posts.length ? `<section class="sec"><h2 class="sec-h">Posts</h2><div class="post-list">${posts.map(p => postCard(p, { trip: true })).join("")}</div></section>` : "") +
     (n ? "" : `<p class="note">Nothing found. Placeholder posts aren’t searched.</p>`);
 }
-// ---- trial (21 Nov, her question: Map, Countries and Stats overlap): three ways to fold them together, to compare
-//   #/try/1  Map and Countries as one page ("Map"): map, then the tracker, then the countries; Stats stays
-//   #/try/2  the tracker moves into Stats; Map keeps the map and the list by continent
-//   #/try/3  everything on one page ("Map and stats")
-const bodyOf = html => html.replace(/^\s*(<nav class="crumbs">.*?<\/nav>)?\s*<header class="page-head">[\s\S]*?<\/header>/, "");
-function pageTry(n) {
-  const banner = `<p class="note banner-note">${icon("info")}Trying out a way to combine pages (${n} of 3): <a href="#/try/1">1</a> · <a href="#/try/2">2</a> · <a href="#/try/3">3</a>. Nothing else has changed yet.</p>`;
-  const tracker = bodyOf(pageCountries());
-  if (n === "1") return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")} · option 1`) + banner +
-    bodyOf(pageMap()).replace(/<h2 class="sr-only">By continent<\/h2><div class="cont-cols">[\s\S]*$/, "") + `<section class="sec"><h2 class="sec-h">Countries visited</h2>${tracker}</section>`;
-  if (n === "2") return head("Stats", "For fun · option 2") + banner + `<section class="sec" style="margin-top:0"><h2 class="sec-h">Countries</h2>${tracker}</section>` + `<section class="sec"><h2 class="sec-h">Facts</h2>${bodyOf(pageStats())}</section>`;
-  if (n === "3") return head("Map and stats", "Everything in one place · option 3") + banner +
-    bodyOf(pageMap()).replace(/<h2 class="sr-only">By continent<\/h2><div class="cont-cols">[\s\S]*$/, "") +
-    `<section class="sec"><h2 class="sec-h">Countries</h2>${tracker}</section><section class="sec"><h2 class="sec-h">Facts</h2>${bodyOf(pageStats())}</section>`;
-  return notFound();
-}
 function nav(route) {
   const item = (href, ic, label, on, n) => `<a href="${href}" class="${on ? "on" : ""}">${icon(ic)}<span>${label}</span>${n != null ? `<small>${n}</small>` : ""}</a>`;
   const r = route[0] || "";
-  return `<div class="nav-main">${item("#/", "home", "Home", r === "")}${item("#/trips", "plane", "Trips", r === "trips" || r === "trip" || r === "year", TRIPS.length)}${item("#/map", "map", "Map", r === "map")}${item("#/countries", "globe", "Countries", r === "countries" || r === "country", VISITED.length)}${item("#/stats", "chart", "Stats", r === "stats")}${item("#/timeline", "clock", "Timeline", r === "timeline")}${item("#/search", "search", "Search", r === "search")}<a href="#/surprise" class="surprise">${icon("shuffle")}<span>Surprise me</span></a>${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>
+  const places = `${item("#/map", "map", "Map", r === "map" || r === "countries" || r === "country", VISITED.length)}${item("#/stats", "chart", "Stats", r === "stats")}`;
+  return `<div class="nav-main">${item("#/", "home", "Home", r === "")}${item("#/trips", "plane", "Trips", r === "trips" || r === "trip" || r === "year", TRIPS.length)}${places}${item("#/timeline", "clock", "Timeline", r === "timeline")}${item("#/search", "search", "Search", r === "search")}<a href="#/surprise" class="surprise">${icon("shuffle")}<span>Surprise me</span></a>${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>
     <div class="nav-years"><div class="nav-h">Years</div>${YEARS.map(y => item(`#/year/${y}`, "calendar", y, r === "year" && route[1] === y, TRIPS.filter(t => year(t) === y).length)).join("")}</div>`;
 }
 function render() {
@@ -516,12 +469,11 @@ function render() {
   else if (r === "trips") html = pageTrips();
   else if (r === "year") html = pageTrips(a);
   else if (r === "trip") html = b ? pagePost(a, b) : pageTrip(a);
-  else if (r === "map") html = a && a !== "routes" ? notFound() : pageMap(a, b, route[3]);
+  else if (r === "map") html = a ? notFound() : pageMap();
   else if (r === "surprise") { location.replace(surprisePost()); return; }
   else if (r === "timeline") html = pageTimeline();
-  else if (r === "try") html = pageTry(a);
   else if (r === "search") html = pageSearch(a);
-  else if (r === "countries") html = pageCountries();
+  else if (r === "countries") html = pageMap();   // the old Countries address still works
   else if (r === "country") html = pageCountry(a);
   else if (r === "stats") html = pageStats();
   else if (r === "write") html = pageWrite();
@@ -533,7 +485,6 @@ function render() {
   if (render.done) $("#view").focus({ preventScroll: true });   // after a click, keyboard and screen readers start at the new page
   render.done = true;
   if (r === "write") wireWrite();
-  if (r === "map") markChosenRoute();
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
@@ -556,6 +507,13 @@ $("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-op
 const scrim = document.createElement("div"); scrim.className = "scrim"; scrim.onclick = () => { setMenu(false); $("#menuBtn").focus(); }; $("#side").appendChild(scrim);
 addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("menu-open")) { setMenu(false); $("#menuBtn").focus(); } });
 addEventListener("hashchange", render);
+// on her PC: if the site has been rebuilt since this page was opened, load the new version (so she never sees an old copy)
+if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange", () => {
+  fetch("index.html", { cache: "no-store" }).then(r => r.text()).then(html => {
+    const now = (html.match(/js\/app\.js\?v=([0-9a-f]+)/) || [])[1], mine = ([...document.scripts].map(s => s.src).find(u => /app\.js/.test(u)) || "").split("v=")[1];
+    if (now && mine && now !== mine) location.reload();
+  }).catch(() => {});
+});
 
 // her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper: set on <html> in index.html
 render();

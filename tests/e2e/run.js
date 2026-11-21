@@ -95,7 +95,7 @@ if (SUITE === 'her') {
       const n = href => +document.querySelector(`#nav a[href="${href}"] small`)?.textContent;
       const D = TRAVELS, visited = new Set(D.trips.flatMap(t => t.countries).filter(c => c !== D.home));
       const years = {}; D.trips.forEach(t => { const y = t.from.slice(0, 4); years[y] = (years[y] || 0) + 1; });
-      return { trips: [n('#/trips'), D.trips.length], countries: [n('#/countries'), visited.size],
+      return { trips: [n('#/trips'), D.trips.length], countries: [n('#/map'), visited.size],
         years: Object.entries(years).map(([y, c]) => [y, n('#/year/' + y), c]) };
     });
     eq(r.trips[0], r.trips[1], 'trips'); eq(r.countries[0], r.countries[1], 'countries');
@@ -355,7 +355,7 @@ if (SUITE === 'her') {
     eq(await page.evaluate(() => document.documentElement.dataset.mode), 'dark', 'remembered after reloading');
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     ok(bg !== 'rgb(247, 245, 238)', 'background should be dark: ' + bg);
-    for (const r of ['#/', '#/trip/japan-2024/02', '#/countries', '#/map/routes']) {
+    for (const r of ['#/', '#/trip/japan-2024/02', '#/countries', '#/trip/japan-2024']) {
       await go(page, r); ok(!page.errors.length, page.errors.join(' / '));
     }
     await page.click('#modeBtn');
@@ -369,13 +369,17 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
-  test('routes map: one route per trip, from home and back; trip with two places has a line', async () => {
-    const page = await open({ hash: '#/map/routes' });
-    const r = await page.evaluate(() => ({ routes: document.querySelectorAll('.big-map .route').length, trips: TRAVELS.trips.length, home: [...document.querySelectorAll('.big-map .pin title')].some(t => t.textContent.startsWith('Home')) }));
-    eq(r.routes, r.trips, 'routes'); ok(r.home, 'home pin');
-    await go(page, '#/map'); eq(await page.evaluate(() => document.querySelectorAll('.big-map .route').length), 0, 'plain map has no routes');
-    await go(page, '#/trip/nyc-nashville-2024'); eq(await page.evaluate(() => document.querySelectorAll('.trip-map .route').length), 1, 'NYC–Nashville line');
-    await go(page, '#/trip/japan-2024'); eq(await page.evaluate(() => document.querySelectorAll('.trip-map .route').length), 0, 'no named places, no line');
+  test('every trip page shows its route from home and back, with the distance; the Map page has no routes', async () => {
+    const page = await open();
+    for (const id of await page.evaluate(() => TRAVELS.trips.map(t => t.id))) {
+      await go(page, '#/trip/' + id);
+      const r = await page.evaluate(() => { const svg = document.querySelector('.trip-map svg'), vb = svg.viewBox.baseVal;
+        const home = svg.querySelector('.pin.home .pin-dot'); const x = +home.getAttribute('cx'), y = +home.getAttribute('cy');
+        return { routes: svg.querySelectorAll('.route').length, homeOnMap: x >= 0 && y >= 0 && x <= vb.width && y <= vb.height, km: /About [\d,]+ km from Birmingham and back/.test(document.querySelector('.route-meta')?.textContent || '') }; });
+      eq(r, { routes: 1, homeOnMap: true, km: true }, id);
+    }
+    await go(page, '#/map'); eq(await page.evaluate(() => document.querySelectorAll('.big-map .route').length), 0, 'Map page');
+    await go(page, '#/map/routes'); eq((await shown(page)).h1, 'Not found', 'old routes address');
     await page.close2();
   });
 
@@ -413,20 +417,6 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
-  test('routes three ways: all faint with one picked, one year at a time, pick a trip', async () => {
-    const page = await open({ hash: '#/map/routes' });
-    const n = () => page.evaluate(() => document.querySelectorAll('.big-map .route').length);
-    eq(await n(), await page.evaluate(() => TRAVELS.trips.length), 'A shows every route');
-    await go(page, '#/map/routes/faint/japan-2024');
-    eq(await page.evaluate(() => [...document.querySelectorAll('.route.chosen')].map(r => r.dataset.trip)), ['japan-2024'], 'chosen trip forward');
-    await go(page, '#/map/routes/year');
-    eq(await n(), await page.evaluate(() => TRAVELS.trips.filter(t => t.from.startsWith('2026')).length), 'B: newest year only');
-    await go(page, '#/map/routes/year/2012'); eq(await n(), 1, 'B: 2012');
-    await go(page, '#/map/routes/pick'); eq(await n(), 0, 'C: nothing until picked');
-    await go(page, '#/map/routes/pick/india-2012'); eq(await n(), 1, 'C: one route');
-    await go(page, '#/map/routes/year/1999'); eq(await n(), await page.evaluate(() => TRAVELS.trips.filter(t => t.from.startsWith('2026')).length), 'unknown year falls back to newest');
-    await page.close2();
-  });
 
   test('this time of year, firsts, surprise me', async () => {
     const page = await open();
@@ -450,6 +440,42 @@ if (SUITE === 'her') {
     eq(await page.evaluate(() => Math.round(scrollY)), 0, 'scrolled to the top');
     eq(await page.evaluate(() => document.activeElement.id), 'view', 'focus at the top');
     await page.close2();
+  });
+
+  test('Map and Countries are one page (her pick); the old Countries address shows it; no Countries in the sidebar', async () => {
+    const page = await open({ hash: '#/map' });
+    const r = await page.evaluate(() => ({ map: !!document.querySelector('.big-map svg'), ring: document.querySelector('.ring b')?.textContent, tiles: document.querySelectorAll('.ctile').length,
+      nav: [...document.querySelectorAll('#nav .nav-main a span')].map(s => s.textContent) }));
+    ok(r.map && r.ring && r.tiles > 0, JSON.stringify(r)); ok(!r.nav.includes('Countries'), r.nav.join(', '));
+    await go(page, '#/countries'); eq((await shown(page)).h1, 'Map');
+    await go(page, '#/country/FR'); eq(await page.evaluate(() => document.querySelector('#nav a.on span').textContent), 'Map', 'country pages light up Map');
+    await page.close2();
+  });
+
+  test('framed boxes never touch each other, on every page at every width (her ask, 21 Nov)', async () => {
+    const bad = [];
+    for (const [w, h, phone] of WIDTHS) {
+      const page = await open({ width: w, height: h, phone });
+      for (const r of await routes(page)) {
+        await go(page, r);
+        const found = await page.evaluate(() => {
+          // a box's frame: its border plus the double edge drawn outside it (box-shadow up to 5px), or a map's outline (6px)
+          const boxes = [...document.querySelectorAll('#view .trip-card, #view .post-tile, #view .post-card, #view .fact, #view .chart-sec, #view .tracker, #view .comments, #view .ctile, #view .write, #view .big-map, #view .trip-map, #view .tl-trip, #view .stat-row')]
+            .filter(e => e.offsetParent).map(e => { const b = e.getBoundingClientRect(), o = /map/.test(e.className) ? 6 : /stat-row/.test(e.className) ? 0 : 5; return { e, l: b.left - o, r: b.right + o, t: b.top - o, b: b.bottom + o }; });
+          const out = [];
+          for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i], c = boxes[j];
+            if (a.e.contains(c.e) || c.e.contains(a.e)) continue;
+            const gapX = Math.max(c.l - a.r, a.l - c.r), gapY = Math.max(c.t - a.b, a.t - c.b);
+            if (Math.max(gapX, gapY) < 8) out.push(`${a.e.className.split(' ')[0]} / ${c.e.className.split(' ')[0]} (${Math.round(Math.max(gapX, gapY))}px)`);
+          }
+          return [...new Set(out)];
+        });
+        if (found.length) bad.push(`${w} ${r}: ${found.slice(0, 3).join(', ')}`);
+      }
+      await page.close2();
+    }
+    ok(!bad.length, bad.slice(0, 20).join('\n'));
   });
 
   test('only one filter id per map, even with two maps on a page', async () => {
