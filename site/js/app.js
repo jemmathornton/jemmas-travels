@@ -146,7 +146,7 @@ function postCard(p, opts = {}) {
   return `<article class="post-card">
     <div class="post-meta"><span class="day">${esc(dayLabel(p))}</span>${opts.trip ? `<a href="#/trip/${t.id}">${esc(t.title)}</a> · ${esc(fmtRange(t))}` : ""}${p.place ? `<span class="place">${icon("map-pin")}${ph(p.place)}</span>` : ""}</div>
     <h3><a href="#/trip/${p.trip}/${p.slug}">${ph(p.title)}</a></h3>
-    ${p.text[0] ? `<p class="excerpt">${ph(p.text[0])}</p>` : ""}
+    ${p.text.find(x => !isPhotoMark(x)) ? `<p class="excerpt">${ph(p.text.find(x => !isPhotoMark(x)))}</p>` : ""}
     ${strip ? `<div class="strip">${strip}</div>` : ""}
     <a class="more" href="#/trip/${p.trip}/${p.slug}">Read post ${icon("arrow-right")}</a>
   </article>`;
@@ -199,16 +199,43 @@ function pageTrip(id) {
     ${posts.length ? `<div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
       : `<div class="empty-note">${icon("pen")}<p>No posts for this trip yet.</p></div>`}`;
 }
+// A post's words, with photos placed where she puts a marker on a line of its own (see for-jemma/post-templates.md):
+//   [photo 2]  [photo 2 wide]  [photo 2 left]  [photo 2 right]  [photo 2 tall]  [photos 3-5]  [photos 3-8 mosaic]
+//   anything after a colon is the caption: [photo 2 right: Looking back at the harbour]
+// Photos are numbered in the order they're listed in the post's header; any not placed go in a gallery at the end.
+const PHOTO_MARK = /^\[(photos?) (\d+)(?:\s*-\s*(\d+))?((?:\s+(?:left|right|wide|tall|mosaic))*)\s*(?::\s*(.+))?\]$/i;
+function isPhotoMark(x) { return PHOTO_MARK.test(String(x).trim()); }
+function postBody(p) {
+  const used = new Set(); let html = "";
+  for (const para of p.text) {
+    const m = String(para).trim().match(PHOTO_MARK);
+    if (!m) { html += `<p>${ph(para)}</p>`; continue; }
+    const from = +m[2], to = m[3] ? +m[3] : from, opts = (m[4] || "").toLowerCase().trim().split(/\s+/).filter(Boolean), caption = m[5];
+    const idx = []; for (let n = from; n <= to; n++) if (n >= 1 && n <= p.photos.length) { idx.push(n - 1); used.add(n - 1); }
+    if (!idx.length) continue;
+    const pics = idx.map(j => photo(p.trip, p.photos[j], j, opts.includes("tall") ? "tall" : "")).join("");
+    const cap = caption ? `<figcaption>${ph(caption)}</figcaption>` : "";
+    if (idx.length === 1) {
+      const where = ["left", "right", "wide"].find(o => opts.includes(o)) || "full";
+      html += `<div class="inline ${where}${opts.includes("tall") ? " is-tall" : ""}">${pics}${cap}</div>`;
+    } else {
+      const kind = opts.includes("mosaic") ? "mosaic" : "row";
+      html += `<div class="inline ${kind} n${Math.min(idx.length, 6)}${opts.includes("wide") ? " wide" : ""}${opts.includes("tall") ? " is-tall" : ""}"><div class="pics">${pics}</div>${cap}</div>`;
+    }
+  }
+  const rest = p.photos.map((f, j) => j).filter(j => !used.has(j));
+  return { html, rest };
+}
 function pagePost(id, slug) {
   const t = tripById[id]; const posts = postsOf(id); const i = posts.findIndex(p => p.slug === slug);
   if (!t || i < 0) return notFound();
-  const p = posts[i], prev = posts[i - 1], next = posts[i + 1];
+  const p = posts[i], prev = posts[i - 1], next = posts[i + 1], body = postBody(p);
   return `<nav class="crumbs"><a href="#/trips">Trips</a> › <a href="#/year/${year(t)}">${year(t)}</a> › <a href="#/trip/${t.id}">${esc(t.title)}</a></nav>
     <article class="post">
       <header><div class="post-meta"><span class="day">${esc(dayLabel(p))}</span>${esc(fmtRange(t))}${p.place ? `<span class="place">${icon("map-pin")}${ph(p.place)}</span>` : ""}</div>
       <h1>${ph(p.title)}</h1></header>
-      <div class="post-text">${p.text.map(x => `<p>${ph(x)}</p>`).join("")}</div>
-      ${p.photos.length ? `<div class="gallery n${Math.min(p.photos.length, 5)}">${p.photos.map((f, j) => photo(id, f, j)).join("")}</div>` : ""}
+      <div class="post-text">${body.html}</div>
+      ${body.rest.length ? `<div class="gallery n${Math.min(body.rest.length, 5)}">${body.rest.map(j => photo(id, p.photos[j], j)).join("")}</div>` : ""}
       <nav class="post-nav">${prev ? `<a href="#/trip/${id}/${prev.slug}">${icon("chevron-left")}<span><small>${esc(dayLabel(prev))}</small>${ph(prev.title)}</span></a>` : "<span></span>"}
         ${next ? `<a class="next" href="#/trip/${id}/${next.slug}"><span><small>${esc(dayLabel(next))}</small>${ph(next.title)}</span>${icon("chevron-right")}</a>` : "<span></span>"}</nav>
     </article>${comments()}`;

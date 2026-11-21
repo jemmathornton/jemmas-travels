@@ -283,6 +283,207 @@ const TRAVELS = {
  ],
  "posts": [
   {
+   "trip": "italy-2026",
+   "slug": "01",
+   "title": "[placeholder] Template: One big photo at the top",
+   "days": "1",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[photo 1 wide]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "02",
+   "title": "[placeholder] Template: A photo on the right, words beside it",
+   "days": "2",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] A shorter paragraph of your notes.",
+    "[photo 1 right: [placeholder] A caption, if you want one]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "03",
+   "title": "[placeholder] Template: A tall photo on the left",
+   "days": "3",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[photo 1 left tall]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "04",
+   "title": "[placeholder] Template: Two photos side by side, halfway down",
+   "days": "4",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null,
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[photos 1-2: [placeholder] A caption, if you want one]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "05",
+   "title": "[placeholder] Template: Three photos in a row",
+   "days": "5",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null,
+    null,
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] A shorter paragraph of your notes.",
+    "[photos 1-3]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "06",
+   "title": "[placeholder] Template: Left, right, then one across the page",
+   "days": "6-7",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null,
+    null,
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] A shorter paragraph of your notes.",
+    "[photo 1 left]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[photo 2 right tall: [placeholder] A caption, if you want one]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[photo 3 wide]",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "07",
+   "title": "[placeholder] Template: A mosaic of six",
+   "days": "8",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[photos 1-6 mosaic]",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "08",
+   "title": "[placeholder] Template: Words only, no photos",
+   "days": "9",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [],
+   "placeholder": true,
+   "text": [
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "09",
+   "title": "[placeholder] Template: All the photos together at the end",
+   "days": "10",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
+   "trip": "italy-2026",
+   "slug": "10",
+   "title": "[placeholder] Template: A mix: one in the text, two tall, one on the right",
+   "days": "11-12",
+   "dates": "",
+   "place": "[placeholder] Where you were",
+   "photos": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "placeholder": true,
+   "text": [
+    "[placeholder] A shorter paragraph of your notes.",
+    "[photo 1: [placeholder] A caption, if you want one]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[photos 2-3 tall]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[photo 4 right]",
+    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of your notes."
+   ]
+  },
+  {
    "trip": "japan-2024",
    "slug": "01",
    "title": "[placeholder] Your title for day 1",
