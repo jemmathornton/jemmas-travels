@@ -83,19 +83,20 @@ function worldMap(pins = [], opts = {}) {
     const path = `<path class="c${v ? " v" : ""}" d="${d}"><title>${escMap(name)}</title></path>`;
     land += v && links[id] ? `<a href="${links[id]}" aria-label="${escMap(name)}">${path}</a>` : path;
   }
-  // routes (trial extra, 21 Nov): each a list of [lat, lon] stops, drawn along great circles (the way a plane flies)
+  // routes: each a list of [lat, lon] stops, drawn as gentle arcs bowing north, the way airline route maps draw flights
+  // (21 Nov, her ask: the true shortest path bowed up over the Arctic, which isn't how her planes flew)
   let routesSvg = "";
   for (const route of opts.routes || []) {   // a list of stops, or {stops, id, title}
     const stops = Array.isArray(route) ? route : route.stops;
     let d = "";
     for (let i = 0; i < stops.length - 1; i++) {
-      const pts = greatCircle(stops[i], stops[i + 1], 40);
-      let last = null;
-      for (const [la, lo] of pts) {
-        const [x, y] = P(lo, la);
-        d += (last === null || Math.abs(lo - last) > 180 ? "M" : "L") + f(x) + " " + f(y);   // a new stroke where it crosses 180°
-        last = lo;
-      }
+      const [la1, lo1] = stops[i]; let [la2, lo2] = stops[i + 1];
+      if (lo2 - lo1 > 180) lo2 -= 360; else if (lo1 - lo2 > 180) lo2 += 360;   // the short way round, across 180° if need be
+      const [x1, y1] = P(lo1, la1), [x2, y2] = P(lo2, la2);
+      const len = Math.hypot(x2 - x1, y2 - y1); if (len < 0.5) continue;
+      let nx = -(y2 - y1) / len, ny = (x2 - x1) / len; if (ny > 0) { nx = -nx; ny = -ny; }   // the side facing north (up)
+      const bow = len * 0.18;
+      d += `M${f(x1)} ${f(y1)}Q${f((x1 + x2) / 2 + nx * bow)} ${f((y1 + y2) / 2 + ny * bow)} ${f(x2)} ${f(y2)}`;
     }
     if (d) routesSvg += `<path class="route"${route.id ? ` data-trip="${escMap(route.id)}"` : ""} d="${d}">${route.title ? `<title>${escMap(route.title)}</title>` : ""}</path>`;
   }
