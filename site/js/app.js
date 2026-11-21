@@ -486,6 +486,22 @@ function pageSearch(q) {
     (posts.length ? `<section class="sec"><h2 class="sec-h">Posts</h2><div class="post-list">${posts.map(p => postCard(p, { trip: true })).join("")}</div></section>` : "") +
     (n ? "" : `<p class="note">Nothing found. Placeholder posts aren’t searched.</p>`);
 }
+// ---- trial (21 Nov, her question: Map, Countries and Stats overlap): three ways to fold them together, to compare
+//   #/try/1  Map and Countries as one page ("Map"): map, then the tracker, then the countries; Stats stays
+//   #/try/2  the tracker moves into Stats; Map keeps the map and the list by continent
+//   #/try/3  everything on one page ("Map and stats")
+const bodyOf = html => html.replace(/^\s*(<nav class="crumbs">.*?<\/nav>)?\s*<header class="page-head">[\s\S]*?<\/header>/, "");
+function pageTry(n) {
+  const banner = `<p class="note banner-note">${icon("info")}Trying out a way to combine pages (${n} of 3): <a href="#/try/1">1</a> · <a href="#/try/2">2</a> · <a href="#/try/3">3</a>. Nothing else has changed yet.</p>`;
+  const tracker = bodyOf(pageCountries());
+  if (n === "1") return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")} · option 1`) + banner +
+    bodyOf(pageMap()).replace(/<h2 class="sr-only">By continent<\/h2><div class="cont-cols">[\s\S]*$/, "") + `<section class="sec"><h2 class="sec-h">Countries visited</h2>${tracker}</section>`;
+  if (n === "2") return head("Stats", "For fun · option 2") + banner + `<section class="sec" style="margin-top:0"><h2 class="sec-h">Countries</h2>${tracker}</section>` + `<section class="sec"><h2 class="sec-h">Facts</h2>${bodyOf(pageStats())}</section>`;
+  if (n === "3") return head("Map and stats", "Everything in one place · option 3") + banner +
+    bodyOf(pageMap()).replace(/<h2 class="sr-only">By continent<\/h2><div class="cont-cols">[\s\S]*$/, "") +
+    `<section class="sec"><h2 class="sec-h">Countries</h2>${tracker}</section><section class="sec"><h2 class="sec-h">Facts</h2>${bodyOf(pageStats())}</section>`;
+  return notFound();
+}
 function nav(route) {
   const item = (href, ic, label, on, n) => `<a href="${href}" class="${on ? "on" : ""}">${icon(ic)}<span>${label}</span>${n != null ? `<small>${n}</small>` : ""}</a>`;
   const r = route[0] || "";
@@ -503,6 +519,7 @@ function render() {
   else if (r === "map") html = a && a !== "routes" ? notFound() : pageMap(a, b, route[3]);
   else if (r === "surprise") { location.replace(surprisePost()); return; }
   else if (r === "timeline") html = pageTimeline();
+  else if (r === "try") html = pageTry(a);
   else if (r === "search") html = pageSearch(a);
   else if (r === "countries") html = pageCountries();
   else if (r === "country") html = pageCountry(a);
