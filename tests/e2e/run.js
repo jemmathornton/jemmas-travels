@@ -250,7 +250,7 @@ if (SUITE === 'her') {
             balance: /balance/.test(getComputedStyle(ps[1]).textWrap || '') || getComputedStyle(ps[1]).textWrapStyle === 'balance' };
         });
         const want = { footers: 1, order: ['foot-name', 'about-site', 'foot-links'], name: 'Jemma’s Travels', italic: 'normal',
-          line1: 'No cookies, no tracking, no ads. Made with plain HTML and CSS, kept on GitHub.',
+          line1: 'No cookies, no tracking, no ads. Made with HTML, CSS and JavaScript, kept on GitHub.',
           credits: ['Photos are my own', 'Country shapes from Natural Earth', 'Fonts: Instrument Serif and Manrope', 'Icons by Lucide'], capitals: true,
           rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false, seps: true, balance: true };
         for (const k in want) if (JSON.stringify(r[k]) !== JSON.stringify(want[k])) bad.push(`${h} ${k}: ${JSON.stringify(r[k])}`);
@@ -577,7 +577,7 @@ if (SUITE === 'her') {
       await go(page, '#/trip/' + id);
       const r = await page.evaluate(() => { const svg = document.querySelector('.trip-map svg'), vb = svg.viewBox.baseVal;
         const home = svg.querySelector('.pin.home .pin-dot'); const x = +home.getAttribute('cx'), y = +home.getAttribute('cy');
-        return { routes: svg.querySelectorAll('.route').length, homeOnMap: x >= 0 && y >= 0 && x <= vb.width && y <= vb.height, km: /About [\d,]+ km from Birmingham and back/.test(document.querySelector('.route-meta')?.textContent || '') }; });
+        return { routes: svg.querySelectorAll('.route').length, homeOnMap: x >= 0 && y >= 0 && x <= vb.width && y <= vb.height, km: /^Distance [\d,]+0 km from Birmingham and back, as the crow flies$/.test((document.querySelector('.route-meta')?.textContent || '').replace(/\s+/g, ' ').trim()) }; });
       eq(r, { routes: 1, homeOnMap: true, km: true }, id);
     }
     await go(page, '#/map'); eq(await page.evaluate(() => document.querySelectorAll('.big-map .route').length), 0, 'Map page');
@@ -766,11 +766,20 @@ if (SUITE === 'fixture') {
     eq(f['busiest year'].split(' | ')[0], EXPECT.busiest, 'busiest year');
     eq(f['longest gap'], `${EXPECT.longest_gap[0]} years | ${EXPECT.longest_gap[1]} to ${EXPECT.longest_gap[2]}`, 'longest gap');
     eq(f['most visited'].split(' | ')[0], EXPECT.most_visited.join(', '), 'most visited');
-    eq(f['favourite month'].split(' | ')[0], EXPECT.fav_month, 'favourite month');
+    ok(!('favourite month' in f), 'Favourite month is gone (her decision, 21 Nov)');
     ok(f['furthest from home'].startsWith(EXPECT.furthest) && /Birmingham/.test(f['furthest from home']), 'furthest: ' + f['furthest from home']);
     const bars = await page.evaluate(() => [...document.querySelectorAll('.bar')].map(b => b.title));
     eq(bars[0], '2020: 2 trips', 'first bar'); eq(bars[bars.length - 1], '2026: 3 trips', 'last bar');
     ok(bars.includes('2023: 0 trips'), 'empty years shown as zero');
+    await page.close2();
+  });
+
+  test('each trip page shows its distance: great-circle legs from home and back, to the nearest 10 km', async () => {
+    const page = await open();
+    for (const [id, want] of Object.entries(EXPECT.distances)) {
+      await go(page, '#/trip/' + id);
+      eq(await page.evaluate(() => [document.querySelector('.route-meta .dk')?.textContent, document.querySelector('.route-meta .dist')?.textContent]), ['Distance', want], id);
+    }
     await page.close2();
   });
 

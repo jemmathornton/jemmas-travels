@@ -432,7 +432,8 @@ label.drop { cursor: pointer; }
 /* ---------- a trip's route from home (on its page) ---------- */
 .worldmap .pin.home .pin-dot { fill: var(--pin-home); }
 .worldmap .pin.home .pin-halo { fill: color-mix(in srgb, var(--pin-home) 22%, transparent); }
-.route-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.route-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 4px; }
+.route-meta .dist { font-weight: 700; }
 .route-meta svg { width: 14px; height: 14px; }
 
 /* ---------- firsts, surprise me (trial) ---------- */

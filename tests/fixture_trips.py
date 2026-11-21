@@ -38,7 +38,10 @@ EXPECT = {
     "busiest": "2026",       # 3 trips start in 2026
     "longest_gap": (6, 2020, 2026),
     "most_visited": ["France"],   # 2 trips
-    "fav_month": "January",  # Jan, Mar, May, Jun, Aug, Dec once each (Chile has no month): a tie goes to the earliest
+    # trip distances: Birmingham (52.48, -1.9) to each stop and back, great circle, R 6371 km, to the nearest 10 km
+    "distances": {"paris-2026": "1,000 km",           # 1,003.1
+                  "italy-france-2020": "3,140 km",    # 3,144.3 (Italy's point, then France's)
+                  "fiji-nz-2027": "37,470 km"},       # 37,468.1
     "furthest": "New Zealand",    # from Birmingham: NZ ~18,300 km, Fiji ~16,300 km
 }
 

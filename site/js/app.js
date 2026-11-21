@@ -119,6 +119,7 @@ function tripStops(t) { // where a trip went, in order: the places she named, or
 }
 function tripRoute(t) { return [HOME_AT(), ...tripStops(t), HOME_AT()]; }   // from home and back
 function tripKm(t) { const r = tripRoute(t); let n = 0; for (let i = 0; i < r.length - 1; i++) n += km(r[i], r[i + 1]); return n; }
+function fmtKm(n) { return `${(Math.round(n / 10) * 10).toLocaleString("en-GB")} km`; }   // to the nearest 10 km, e.g. 4,820 km
 function km(a, b) {
   const R = 6371, r = x => x * Math.PI / 180;
   const dLat = r(b[0] - a[0]), dLon = r(b[1] - a[1]);
@@ -210,7 +211,7 @@ function pageHome() {
       <div class="hero-map">${worldMap(placePins(TRIPS, false), { visited: VISITED.map(isoOf), aria: "World map with the countries visited coloured in" })}</div>
       <div class="hero-text"><div class="kicker">${plural(TRIPS.length, "trip")} · ${YEARS[YEARS.length - 1]} to ${YEARS[0]}</div>
       <h1>Jemma’s <em>Travels</em></h1>
-      <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
+      <p class="tagline"><span class="ph-text">A line about these travels, in Jemma’s own words.</span> <span class="ph">Placeholder</span></p></div>
     </section>
     ${statTiles([[TRIPS.length, "trips", "#/trips"], [VISITED.length, "countries", "#/map"], [continents.size, "continents", "#/map"], [YEARS.length, "years travelled", "#/stats"]])}
     ${thisTimeOfYear()}
@@ -258,7 +259,7 @@ function pageTrip(id) {
       <div class="trip-head-text"><div class="kicker">${icon("calendar")}${esc(fmtRange(t))}</div><h1>${esc(t.title)}</h1>
         <div class="chips">${chips(t.countries)}</div>
         <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div>
-        <div class="meta route-meta">${icon("route")}About ${(Math.round(tripKm(t) / 100) * 100).toLocaleString("en-GB")} km from ${esc(D.homeTown || "home")} and back, as the crow flies</div></div>
+        <div class="meta route-meta">${icon("route")}<span class="dk">Distance</span> <b class="dist">${fmtKm(tripKm(t))}</b> <span>from ${esc(D.homeTown || "home")} and back, as the crow flies</span></div></div>
       <div class="trip-map">${tripMap(t)}</div>
     </header>
     ${posts.length ? `<h2 class="sr-only">Posts</h2><div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
@@ -368,7 +369,7 @@ function pageStats() {
   const maxY = Math.max(...perYear.map(x => x[1]));
   let gap = [0, 0, 0]; for (let i = 0; i < ys.length - 1; i++) if (ys[i] - ys[i + 1] > gap[0]) gap = [ys[i] - ys[i + 1], ys[i + 1], ys[i]];
   const monthN = Array(12).fill(0); TRIPS.forEach(t => new Set(tripMonths(t).map(x => x[1])).forEach(m => monthN[m - 1]++));
-  const maxM = Math.max(...monthN), topMonth = monthN.indexOf(maxM);
+  const maxM = Math.max(...monthN);
   const counts = VISITED.map(c => [c, TRIPS.filter(t => t.countries.includes(c)).length]).sort((a, b) => b[1] - a[1]);
   const most = counts.length && counts[0][1] > 1 ? counts.filter(x => x[1] === counts[0][1]) : [];
   const home = D.homeAt || country(D.home).at;
@@ -384,7 +385,6 @@ function pageStats() {
       ${fact("Countries", VISITED.length, `of ${TOTAL_COUNTRIES}`)}
       ${fact("Continents", continents.size, "of 7")}
       ${fact("Trips", TRIPS.length, `${YEARS.length} different years`)}
-      ${maxM ? fact("Favourite month", MONTHS[topMonth], `${maxM} of ${TRIPS.length} trips`) : ""}
       ${most.length ? fact("Most visited", most.map(x => esc(country(x[0]).name)).join(", "), `${plural(most[0][1], "trip")}${most.length > 1 ? " each" : ""}`) : ""}
       ${far ? fact("Furthest from home", esc(country(far[0]).name), `about ${(Math.round(far[1] / 100) * 100).toLocaleString("en-GB")} km from ${esc(D.homeTown || "home")}`) : ""}
       ${fact("Busiest year", busyYears.join(", "), `${plural(busiest, "trip")}`)}
@@ -406,7 +406,7 @@ function pageWrite() {
   const tripOpts = TRIPS.map(t => `<option value="${esc(t.id)}">${esc(t.title)} · ${esc(fmtRange(t))}</option>`).join("");
   const countryOpts = Object.entries(D.countries).filter(([c]) => c !== D.home).sort((a, b) => a[1].name.localeCompare(b[1].name))
     .map(([c, k]) => `<label class="tick"><input type="checkbox" name="nc" value="${c}"> ${esc(k.name)}</label>`).join("");
-  return head("Write a post", "Only on your PC") + `<p class="note banner-note" id="wServer">${icon("info")}This page only exists on your own computer, so no sign-in is needed: online, there is no way to write.</p>
+  return head("Write a post", "Only on this PC") + `<p class="note banner-note" id="wServer">${icon("info")}This page only exists on this computer, so no sign-in is needed: online, there is no way to write.</p>
     <form class="write" id="writeForm" novalidate>
       <label>Trip<select name="trip">${tripOpts}<option value="">+ New trip…</option></select></label>
       <fieldset class="newtrip" hidden><legend>New trip</legend>
@@ -418,8 +418,8 @@ function pageWrite() {
       <div class="two"><label>Day or days<input name="days" placeholder="e.g. 3, or 2-4"></label><label>Or dates<input name="dates" placeholder="e.g. 2026-09-05 to 2026-09-07"></label></div>
       <label>Where<input name="place" placeholder="e.g. Kyoto"></label>
       <label>Title<input name="title" placeholder="Title for this post" required></label>
-      <label>Notes<textarea name="text" rows="11" placeholder="Write as much or as little as you like. A blank line starts a new paragraph."></textarea></label>
-      <p class="note">To put a photo in the middle of your words, write its marker on a line of its own, e.g. <code>[photo 2 right]</code>, <code>[photos 3-5]</code>, <code>[photos 1-6 mosaic]</code> (all of them: for-jemma/post-templates.md). Photos you don’t place go at the end.</p>
+      <label>Notes<textarea name="text" rows="11" placeholder="Any length. A blank line starts a new paragraph."></textarea></label>
+      <p class="note">To put a photo in the middle of the text, write its marker on a line of its own, e.g. <code>[photo 2 right]</code>, <code>[photos 3-5]</code>, <code>[photos 1-6 mosaic]</code> (all of them: for-jemma/post-templates.md). Photos not placed go at the end.</p>
       <label class="drop" id="drop">${icon("upload")}<b>Drop photos here</b><span>or click to choose · copied and resized for the site; where they were taken is removed</span><input type="file" accept="image/*" multiple hidden id="files"></label>
       <ol class="picked" id="picked"></ol>
       <label class="tick"><input type="checkbox" name="cover"> Use photo 1 as the trip’s cover picture</label>
