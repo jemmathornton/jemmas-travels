@@ -5,7 +5,6 @@
 - **How to write posts:** Write page on her PC is OK; through-me for past trips still my suggestion (not decided). Options in `for-jemma/writing-options.md`.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.
 - **Tagline** on the home page: a line in your own words (or none).
-- **GitHub backup:** waiting for the repo she is making; then add it as the remote and push.
 
 ## Later
 - Real trips and dates (the current ones are placeholders).
@@ -15,4 +14,3 @@
 - Dark mode (light by default, button in the footer, like Journals).
 - Tab icon (her own design, like Journals).
 - Journals’ picture for My Travels: redo in the chosen look.
-- Push Jemma’s Journals’ “Add My Travels” commit to GitHub (made 21 Nov, not pushed).

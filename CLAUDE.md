@@ -25,7 +25,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - 21 Nov: **no dotted map** (“too digital, like LED dots”). Now a real country map from Natural Earth (her OK to download, world-atlas 2.0.2 from jsDelivr), visited countries coloured in.
 - 21 Nov: the trips are **placeholders** for now (her words); Portugal is April. Home for distances: **Birmingham**.
 - 21 Nov: Write page OK as long as it’s only on her PC.
-- 21 Nov: **GitHub backup: yes**; she is creating the repo herself (wait for her link, don’t create one).
+- 21 Nov: **GitHub backup: yes**, to the repo she made (jemmas-travels, public).
 - 21 Nov (round 3): **F Old Atlas is closest.** Not sold on the dotted paper background; the map was cropped (fixed: tip of South America, New Zealand); the home page needs a header, not just a big map; worried it’s too far from her other apps (no sidebar). The switch now offers Old Atlas variations only: Layout (sidebar pale / sidebar sea green / top bar), Home header (banner / title label / title over map), Background (plain / grain / grid / sea-chart lines / dots). Sheets: `for-jemma/round-3-*.jpg`.
 
 ## Where things are
@@ -45,4 +45,5 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - Node + Playwright: borrowed from Sim World, `C:/Users/Jemma/Documents/SimTracker/.tools/node/node.exe` (uses Edge, no download).
 - Preview: `travels` in `.claude/launch.json` (port 8041).
 - Check after each change: `tools/build.py`, then `node tests/shoot.js` (about a minute and a half).
-- Git: local repo, commit after each piece of work. No GitHub repo yet (her other apps are public on GitHub; ask before making one: photos would be public too).
+- Git: commit after each piece of work and push. Backed up to GitHub, https://github.com/jemmathornton/jemmas-travels (**public**, the repo she made 21 Nov: anything committed, photos included, can be read by anyone). Push with `git -c "credential.helper=!'C:/Program Files/GitHub CLI/gh.exe' auth git-credential" push`.
+- **Reopen the browser pane every time** I show her changes (her ask, 21 Nov), and give file paths too.
