@@ -1,16 +1,16 @@
 # To do / to decide
 
 ## For Jemma to choose
-- **Look:** A Family, B Postcard, C Atlas or D Lagoon (sheets in `for-jemma/choice-*.jpg`). Mixing is fine (e.g. A’s sidebar with D’s cards).
-- **How to write posts:** options in `for-jemma/writing-options.md` (my suggestion, not decided: 1 + 2).
-- **Proper country map:** OK to download Natural Earth’s country shapes (public domain), `world-atlas` 110m from jsDelivr, about 105 KB? Gives real coastlines and lets visited countries be coloured in, not just pinned.
-- **Portugal 2026:** which month(s)?
+- **Look:** E Airmail Atlas, F Old Atlas or G Seaside Postcards (sheets in `for-jemma/round-2-*.jpg`; round 1 in `for-jemma/round-1/`). Mixing is fine.
+- **How to write posts:** Write page on her PC is OK; through-me for past trips still my suggestion (not decided). Options in `for-jemma/writing-options.md`.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.
-- **Home:** the UK isn’t counted as visited; “furthest from home” is measured from the middle of the UK. A home town would make it exact.
 - **Tagline** on the home page: a line in your own words (or none).
-- **GitHub backup** like your other apps? (Public repo means trip photos are public too; a private repo is possible.)
+- **GitHub backup:** waiting for the repo she is making; then add it as the remote and push.
 
 ## Later
+- Real trips and dates (the current ones are placeholders).
+- Going online: load the detailed map (world.js is 1.2 MB, mostly the 1:50m shapes) only on pages that zoom in.
+- Remove looks A and D (and the trial switch) once she picks.
 - Comments: choose a service when going online.
 - Dark mode (light by default, button in the footer, like Journals).
 - Tab icon (her own design, like Journals).

@@ -74,6 +74,8 @@ def build() -> dict:
         "countries": countries["countries"],
         "continentTotals": countries["continentTotals"],
         "home": countries["home"],
+        "homeTown": countries.get("homeTown", ""),
+        "homeAt": countries.get("homeAt"),
         "posts": posts,
     }
 
@@ -89,7 +91,7 @@ def main():
                    + json.dumps(data, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
     index = SITE / "index.html"
     html = index.read_text(encoding="utf-8")
-    for name in ("site.css", "js/icons.js", "js/data.js", "js/map.js", "js/app.js"):
+    for name in ("site.css", "js/icons.js", "js/data.js", "js/world.js", "js/map.js", "js/app.js"):
         p = SITE / name
         if p.exists():
             html = re.sub(re.escape(name) + r"\?v=[0-9a-f]+", f"{name}?v={fingerprint(p)}", html)

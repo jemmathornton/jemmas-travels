@@ -24,8 +24,8 @@ const TRAVELS = {
   {
    "id": "portugal-2026",
    "title": "Portugal",
-   "from": "2026",
-   "to": "2026",
+   "from": "2026-04",
+   "to": "2026-04",
    "countries": [
     "PT"
    ]
@@ -146,7 +146,8 @@ const TRAVELS = {
    "at": [
     54.0,
     -2.5
-   ]
+   ],
+   "iso": "826"
   },
   "IT": {
    "name": "Italy",
@@ -154,7 +155,8 @@ const TRAVELS = {
    "at": [
     42.8,
     12.5
-   ]
+   ],
+   "iso": "380"
   },
   "NO": {
    "name": "Norway",
@@ -162,7 +164,8 @@ const TRAVELS = {
    "at": [
     61.0,
     9.0
-   ]
+   ],
+   "iso": "578"
   },
   "DK": {
    "name": "Denmark",
@@ -170,7 +173,8 @@ const TRAVELS = {
    "at": [
     56.0,
     9.5
-   ]
+   ],
+   "iso": "208"
   },
   "SE": {
    "name": "Sweden",
@@ -178,7 +182,8 @@ const TRAVELS = {
    "at": [
     62.0,
     15.0
-   ]
+   ],
+   "iso": "752"
   },
   "PT": {
    "name": "Portugal",
@@ -186,7 +191,8 @@ const TRAVELS = {
    "at": [
     39.6,
     -8.0
-   ]
+   ],
+   "iso": "620"
   },
   "FR": {
    "name": "France",
@@ -194,7 +200,8 @@ const TRAVELS = {
    "at": [
     46.6,
     2.4
-   ]
+   ],
+   "iso": "250"
   },
   "ES": {
    "name": "Spain",
@@ -202,7 +209,8 @@ const TRAVELS = {
    "at": [
     40.2,
     -3.6
-   ]
+   ],
+   "iso": "724"
   },
   "BR": {
    "name": "Brazil",
@@ -210,7 +218,8 @@ const TRAVELS = {
    "at": [
     -10.0,
     -52.0
-   ]
+   ],
+   "iso": "076"
   },
   "AR": {
    "name": "Argentina",
@@ -218,7 +227,8 @@ const TRAVELS = {
    "at": [
     -34.0,
     -64.0
-   ]
+   ],
+   "iso": "032"
   },
   "JP": {
    "name": "Japan",
@@ -226,7 +236,8 @@ const TRAVELS = {
    "at": [
     36.2,
     138.2
-   ]
+   ],
+   "iso": "392"
   },
   "IN": {
    "name": "India",
@@ -234,7 +245,8 @@ const TRAVELS = {
    "at": [
     22.0,
     79.0
-   ]
+   ],
+   "iso": "356"
   },
   "US": {
    "name": "United States",
@@ -242,7 +254,8 @@ const TRAVELS = {
    "at": [
     39.8,
     -98.6
-   ]
+   ],
+   "iso": "840"
   },
   "CA": {
    "name": "Canada",
@@ -250,7 +263,8 @@ const TRAVELS = {
    "at": [
     56.0,
     -106.0
-   ]
+   ],
+   "iso": "124"
   }
  },
  "continentTotals": {
@@ -262,6 +276,11 @@ const TRAVELS = {
   "Oceania": 14
  },
  "home": "GB",
+ "homeTown": "Birmingham",
+ "homeAt": [
+  52.48,
+  -1.9
+ ],
  "posts": [
   {
    "trip": "japan-2024",

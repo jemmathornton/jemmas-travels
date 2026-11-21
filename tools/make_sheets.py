@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 SHOTS = ROOT / "for-jemma" / "looks"
 OUT = ROOT / "for-jemma"
-NAMES = {"a": "A · Family (like your Library and Pokédex)", "b": "B · Postcard", "c": "C · Atlas", "d": "D · Lagoon"}
+NAMES = {"e": "E · Airmail Atlas (Atlas map + Postcard stamps)", "f": "F · Old Atlas (drawn map, postmarks)", "g": "G · Seaside Postcards (big postcard)", "b": "B · Postcard (round 1, for comparing)"}
 FONT = "C:/Windows/Fonts/segoeuib.ttf"
 
 
@@ -44,10 +44,10 @@ def save(im, name, width=2400):
 
 
 # 1. the four home pages side by side
-save(grid([label(crop_top(SHOTS / f"{k}-laptop-home.jpg", 1000), NAMES[k]) for k in NAMES], 2), "choice-1-home-pages.jpg")
+save(grid([label(crop_top(SHOTS / f"{k}-laptop-home.jpg", 1000), NAMES[k]) for k in NAMES], 2), "round-2-1-home-pages.jpg")
 # 2. one sheet per look: inner pages + phone
-pages = [("trip_japan-2024", "A trip"), ("trip_japan-2024_02", "A post (days 2–4)"), ("countries", "Countries tracker"), ("stats", "Stats")]
-for n, k in enumerate(NAMES, start=2):
+pages = [("trip_japan-2024", "A trip"), ("map", "Map"), ("countries", "Countries tracker"), ("stats", "Stats")]
+for n, k in enumerate([k for k in NAMES if k != "b"], start=2):
     tiles = [label(crop_top(SHOTS / f"{k}-laptop-{p}.jpg", 1000), t) for p, t in pages]
     sheet = grid(tiles, 2)
     phone = label(Image.open(SHOTS / f"{k}-phone-home.jpg").convert("RGB"), "Phone", 40)
@@ -55,4 +55,4 @@ for n, k in enumerate(NAMES, start=2):
     both = Image.new("RGB", (sheet.width + ph.width + 30, sheet.height + 110), "white")
     ImageDraw.Draw(both).text((30, 24), NAMES[k], fill="#15302D", font=font(60))
     both.paste(sheet, (0, 110)); both.paste(ph, (sheet.width + 15, 110))
-    save(both, f"choice-{n}-look-{k}.jpg")
+    save(both, f"round-2-{n}-look-{k}.jpg")

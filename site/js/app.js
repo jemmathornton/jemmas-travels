@@ -51,8 +51,38 @@ function pinsFor(trips) {
   }
   return pins;
 }
+function placePins(trips) { // only places she named on a trip
+  return trips.flatMap(t => (t.places || []).map(([name, lat, lon]) => ({ lat, lon, label: name, title: `${name} · ${t.title}`, href: `#/trip/${t.id}` })));
+}
 function countryPins() {
   return VISITED.map(c => { const k = country(c); return { lat: k.at[0], lon: k.at[1], label: k.name, href: `#/country/${c}` }; });
+}
+function isoOf(c) { return country(c).iso; }
+function mapOpts(codes) { const links = {}; codes.forEach(c => { links[isoOf(c)] = `#/country/${c}`; }); return { visited: codes.map(isoOf), links }; }
+const _main = {};
+function mainBox(c) { // bounding box of a country's biggest piece (so France means mainland France, the US the lower 48)
+  if (_main[c]) return _main[c];
+  const shape = WORLD.hi[isoOf(c)]; if (!shape) { const a = country(c).at; return [a[1] - 3, a[0] - 3, a[1] + 3, a[0] + 3]; }
+  let best = null, bestA = -1;
+  for (const r of shape[1]) {
+    let a = 0; for (let i = 0; i < r.length - 2; i += 2) a += r[i] * r[i + 3] - r[i + 2] * r[i + 1];
+    if (Math.abs(a) > bestA) { bestA = Math.abs(a); best = r; }
+  }
+  let w = 180, s = 90, e = -180, n = -90;
+  for (let i = 0; i < best.length; i += 2) { w = Math.min(w, best[i]); e = Math.max(e, best[i]); s = Math.min(s, best[i + 1]); n = Math.max(n, best[i + 1]); }
+  return (_main[c] = [w, s, e, n]);
+}
+function focusOn(codes, pins = []) {
+  let w = 180, s = 90, e = -180, n = -90;
+  for (const c of codes) { const b = mainBox(c); w = Math.min(w, b[0]); s = Math.min(s, b[1]); e = Math.max(e, b[2]); n = Math.max(n, b[3]); }
+  for (const p of pins) { w = Math.min(w, p.lon); e = Math.max(e, p.lon); s = Math.min(s, p.lat); n = Math.max(n, p.lat); }
+  const px = Math.max(3, (e - w) * 0.18), py = Math.max(2, (n - s) * 0.18);
+  w -= px; e += px; s -= py; n += py;
+  const midLat = Math.cos(((s + n) / 2) * Math.PI / 180);
+  const wide = (e - w) * midLat, tall = n - s;
+  if (wide < tall * 1.7) { const c = (w + e) / 2, h = tall * 1.7 / midLat / 2; w = c - h; e = c + h; }
+  else if (tall < wide / 2.4) { const c = (s + n) / 2, h = wide / 2.4 / 2; s = c - h; n = c + h; }
+  return [Math.max(-180, w), Math.max(-85, s), Math.min(180, e), Math.min(85, n)];
 }
 function focusFor(pins) {
   const lats = pins.map(p => p.lat), lons = pins.map(p => p.lon);
@@ -139,7 +169,7 @@ function pageHome() {
   const latest = TRIPS.flatMap(t => postsOf(t.id)).slice(0, 3);
   const continents = new Set(VISITED.map(c => country(c).continent));
   return `<section class="hero">
-      <div class="hero-map">${dotMap(countryPins(), { aria: "Countries visited" })}</div>
+      <div class="hero-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), bounds: [-180, -50, 180, 78], aria: "Countries visited" })}</div>
       <div class="hero-text"><div class="kicker">${plural(TRIPS.length, "trip")} · ${YEARS[YEARS.length - 1]} to ${YEARS[0]}</div>
       <h1>Jemma’s <em>Travels</em></h1>
       <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
@@ -164,7 +194,7 @@ function pageTrip(id) {
       <div class="trip-head-text"><div class="kicker">${icon("calendar")}${esc(fmtRange(t))}</div><h1>${esc(t.title)}</h1>
         <div class="chips">${chips(t.countries)}</div>
         <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div></div>
-      <div class="trip-map">${dotMap(pins, { focus: focusFor(pins), labels: true, aria: `Map of ${t.title}` })}</div>
+      <div class="trip-map">${worldMap(placePins([t]), { ...mapOpts(t.countries), focus: focusOn(t.countries, placePins([t])), labels: true, aria: `Map of ${t.title}` })}</div>
     </header>
     ${posts.length ? `<div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
       : `<div class="empty-note">${icon("pen")}<p>No posts for this trip yet.</p></div>`}`;
@@ -187,8 +217,8 @@ function pageMap() {
   const byCont = {};
   for (const c of VISITED) (byCont[country(c).continent] ||= []).push(c);
   return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`) +
-    `<div class="big-map">${dotMap(pinsFor(TRIPS), { step: 1.5, aria: "Every trip on the map" })}</div>
-    <p class="note map-note">${icon("info")}A stand-in map drawn in code; a proper country map can replace it.</p>
+    `<div class="big-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), aria: "Every country visited" })}</div>
+    <p class="note map-note">${icon("info")}Countries you’ve been to are coloured in; pins are places named on a trip. Map: Natural Earth.</p>
     <div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
       const ts = TRIPS.filter(t => t.countries.includes(c));
       return `<li><a href="#/country/${c}">${esc(country(c).name)}</a><span>${ts.map(t => year(t)).join(", ")}</span></li>`;
@@ -212,10 +242,9 @@ function pageCountries() {
 function pageCountry(code) {
   const k = D.countries[code]; if (!k) return notFound();
   const ts = TRIPS.filter(t => t.countries.includes(code));
-  const pins = pinsFor(ts).filter(p => p.label === k.name || ts.some(t => t.places && t.countries.length === 1));
-  return `<nav class="crumbs"><a href="#/countries">Countries</a> › ${esc(k.continent)}</nav>` +
+    return `<nav class="crumbs"><a href="#/countries">Countries</a> › ${esc(k.continent)}</nav>` +
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
-    `<div class="trip-map wide">${dotMap(pins.length ? pins : [{ lat: k.at[0], lon: k.at[1], label: k.name }], { focus: focusFor(pins.length ? pins : [{ lat: k.at[0], lon: k.at[1] }]), labels: true, aria: `Map of ${k.name}` })}</div>
+    `<div class="trip-map wide">${worldMap(placePins(ts).filter(p => ts.some(t => t.countries.length === 1)), { ...mapOpts([code]), focus: focusOn([code]), labels: true, aria: `Map of ${k.name}` })}</div>
     <div class="trip-grid">${ts.map(tripCard).join("")}</div>`;
 }
 function pageStats() {
@@ -228,7 +257,7 @@ function pageStats() {
   const maxM = Math.max(...monthN), topMonth = monthN.indexOf(maxM);
   const counts = VISITED.map(c => [c, TRIPS.filter(t => t.countries.includes(c)).length]).sort((a, b) => b[1] - a[1]);
   const most = counts.filter(x => x[1] === counts[0][1]);
-  const home = country(D.home).at;
+  const home = D.homeAt || country(D.home).at;
   const far = VISITED.map(c => [c, km(home, country(c).at)]).sort((a, b) => b[1] - a[1])[0];
   const busiest = Math.max(...perYear.map(x => x[1]));
   const busyYears = perYear.filter(x => x[1] === busiest).map(x => x[0]);
@@ -242,7 +271,7 @@ function pageStats() {
       ${fact("Trips", TRIPS.length, `${YEARS.length} different years`)}
       ${fact("Favourite month", MONTHS[topMonth], `${maxM} of ${TRIPS.length} trips`)}
       ${fact("Most visited", most.map(x => esc(country(x[0]).name)).join(", "), `${plural(most[0][1], "trip")} each`)}
-      ${fact("Furthest from home", esc(country(far[0]).name), `about ${(Math.round(far[1] / 100) * 100).toLocaleString("en-GB")} km from the UK`)}
+      ${fact("Furthest from home", esc(country(far[0]).name), `about ${(Math.round(far[1] / 100) * 100).toLocaleString("en-GB")} km from ${esc(D.homeTown || "home")}`)}
       ${fact("Busiest year", busyYears.join(", "), `${plural(busiest, "trip")}`)}
       ${fact("First on record", esc(first.title), esc(fmtRange(first)))}
       ${fact("Longest gap", plural(gap[0], "year"), `${gap[1]} to ${gap[2]}`)}
@@ -253,7 +282,7 @@ function pageStats() {
       <p class="note">Years from ${span[0]} to ${span[span.length - 1]}; labels are the last two digits.</p></section>
     <section class="sec chart-sec"><h2 class="sec-h">Which months</h2>
       <div class="months">${monthN.map((n, i) => `<div class="mcell ${n / maxM > 0.5 ? "dark" : ""}" style="--a:${n ? 0.18 + 0.82 * n / maxM : 0}" title="${MONTHS[i]}: ${plural(n, "trip")}"><b>${n || ""}</b><span>${MONTHS[i].slice(0, 3)}</span></div>`).join("")}</div>
-      <p class="note">Trips away in each month (Portugal 2026 has no month yet).</p></section>`;
+      <p class="note">Trips away in each month.</p></section>`;
 }
 function pageWrite() {
   if (!LOCAL) return notFound();
@@ -303,7 +332,7 @@ $("#menuBtn").onclick = () => { const o = document.body.classList.toggle("menu-o
 addEventListener("hashchange", render);
 
 // ---------- trial switch (only while she is choosing a look) ----------
-const LOOKS = { a: "A · Family", b: "B · Postcard", c: "C · Atlas", d: "D · Lagoon" };
+const LOOKS = { b: "B · Postcard", c: "C · Atlas", e: "E · Airmail Atlas", f: "F · Old Atlas", g: "G · Seaside Postcards" };
 function setLook(k) { document.documentElement.dataset.look = k; try { localStorage.setItem("jt-look", k); } catch (e) {} document.querySelectorAll(".trial button").forEach(b => b.classList.toggle("on", b.dataset.k === k)); }
 (function trial() {
   const q = new URLSearchParams(location.search).get("look");
@@ -312,6 +341,6 @@ function setLook(k) { document.documentElement.dataset.look = k; try { localStor
   box.innerHTML = `<span>Look</span>` + Object.entries(LOOKS).map(([k, v]) => `<button data-k="${k}">${v}</button>`).join("");
   box.onclick = e => { const b = e.target.closest("button"); if (b) setLook(b.dataset.k); };
   if (new URLSearchParams(location.search).get("trial") !== "off") document.body.appendChild(box);
-  setLook(LOOKS[k] ? k : "a");
+  setLook(LOOKS[k] ? k : "e");
 })();
 render();

@@ -1,9 +1,9 @@
 {
-  "_note": "Her trips, from her list of 21 Nov 2026. Titles are her words (slashes written as ‘and’). Months only where she gave them; exact days come later. places: [name, lat, lon] for map pins (only places she named; otherwise the country's own point is used).",
+  "_note": "Sample trips from her list of 21 Nov 2026 (she says they are placeholders for now; Portugal April, her answer). Titles are her words (slashes written as ‘and’). Months only where she gave them; exact days come later. places: [name, lat, lon] for map pins (only places she named; otherwise the country's own point is used).",
   "trips": [
     {"id": "italy-2026", "title": "Italy", "from": "2026-09", "to": "2026-09", "countries": ["IT"]},
     {"id": "norway-denmark-sweden-2026", "title": "Norway, Denmark and Sweden", "from": "2026-06", "to": "2026-06", "countries": ["NO", "DK", "SE"]},
-    {"id": "portugal-2026", "title": "Portugal", "from": "2026", "to": "2026", "countries": ["PT"]},
+    {"id": "portugal-2026", "title": "Portugal", "from": "2026-04", "to": "2026-04", "countries": ["PT"]},
     {"id": "brazil-argentina-2025", "title": "Brazil and Argentina", "from": "2025-11", "to": "2025-12", "countries": ["BR", "AR"]},
     {"id": "strasbourg-2025", "title": "Strasbourg", "from": "2025-12", "to": "2025-12", "countries": ["FR"], "places": [["Strasbourg", 48.58, 7.75]]},
     {"id": "tenerife-2025", "title": "Tenerife", "from": "2025-09", "to": "2025-09", "countries": ["ES"], "places": [["Tenerife", 28.29, -16.63]]},
