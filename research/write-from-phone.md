@@ -27,3 +27,7 @@ Today the Write page saves through `tools/serve.py` on her PC, which shrinks pho
 - **Comments:** separate decision (`research/comments.md`); none of these add comments.
 
 Sources: [Pages CMS docs](https://pagescms.org/docs/), [Sveltia CMS](https://github.com/sveltia/sveltia-cms) (token sign-in; mobile still being improved), [Sveltia CMS Authenticator](https://github.com/sveltia/sveltia-cms-auth) (Cloudflare Worker), GitHub Pages notes in `JemmasJournals/research/going-online.md`.
+
+## Her decision (21 Nov)
+
+**Option 5:** draft on the phone while away (Notes or email), then add the post through the Write page on her PC at home. Nothing built online. She may look again at options 2 or 3 once the site is online.
