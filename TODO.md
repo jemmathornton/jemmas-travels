@@ -1,7 +1,6 @@
 # To do / to decide
 
 ## For Jemma to choose
-- **Sidebar (21 Nov evening):** As now / A / B / C, switch bottom right of the site. Then the switch and the other options go.
 - **Bigger ideas from the 21 Nov check** (my suggestions, not decided): shorten the home page (it ends with every trip again, as on Trips); fold Timeline into Trips as a third view; show a short excerpt per post on a trip page (it shows each whole post now); Previous/Next trip at the bottom of a trip page; a short summary line on country pages; click a continent bar on the Map page to see its countries.
 - **Trips across New Year:** year it started (now) or both years. She’ll come back to it.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.

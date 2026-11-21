@@ -206,7 +206,7 @@ function pageHome() {
 function yearChips(active) {
   return `<div class="filters"><a class="fchip ${active ? "" : "on"}" href="#/trips">All</a>${YEARS.map(y => `<a class="fchip ${active === y ? "on" : ""}" href="#/year/${y}">${y}</a>`).join("")}</div>`;
 }
-// Trips by year (as before) or by country (21 Nov, trial with the sidebar: continents, then countries, then their trips)
+// Trips by year (as before) or by country (21 Nov: continents, then countries, then their trips)
 function tripTabs(on) {
   return `<div class="tabs" role="navigation" aria-label="Trips by"><a href="#/trips" class="${on === "year" ? "on" : ""}"${on === "year" ? ' aria-current="page"' : ""}>${icon("calendar")}By year</a><a href="#/trips/by-country" class="${on === "country" ? "on" : ""}"${on === "country" ? ' aria-current="page"' : ""}>${icon("flag")}By country</a></div>`;
 }
@@ -221,7 +221,7 @@ function pageTripsByCountry() {
       `<div class="filters">${conts.map(k => `<a class="fchip" href="#/trips/by-country" onclick="event.preventDefault();document.getElementById('k-${k.replace(/\W/g, "")}').scrollIntoView()">${esc(k)}</a>`).join("")}</div>`) +
     conts.map(k => {
       const cs = VISITED.filter(c => country(c).continent === k).sort((x, y) => country(x).name.localeCompare(country(y).name));
-      return `<section class="year-group" id="k-${k.replace(/\W/g, "")}"><h2 class="year-h">${esc(k)}<small>${plural(cs.length, "country", "countries")}</small></h2>
+      return `<section class="year-group" id="k-${k.replace(/\W/g, "")}"><h2 class="year-h"><a href="#/continent/${encodeURIComponent(k)}">${esc(k)}</a><small>${plural(cs.length, "country", "countries")}</small></h2>
         ${cs.map(c => `<div class="by-country"><h3><a href="#/country/${c}">${esc(country(c).name)}</a></h3><ul class="trip-lines">${tripsIn(c).map(t =>
           `<li><a href="#/trip/${t.id}">${esc(t.title)}</a><small>${esc(fmtRange(t))}</small></li>`).join("")}</ul></div>`).join("")}</section>`;
     }).join("") + `<p class="note">A trip to several countries is under each of them. Home (${esc(country(D.home).name)}) isn’t listed.</p>`;
@@ -314,11 +314,23 @@ function countriesBody() {
   }).join("")}</div>
   <p class="note">Home (${esc(country(D.home).name)}) isn’t counted. Out of 195: the UN’s members plus the Vatican and Palestine.</p>`;
 }
+// a continent (21 Nov, with the Sim World-style sidebar): its countries visited, on a map, and the trips there
+function pageContinent(k) {
+  if (!CONTINENTS().includes(k)) return notFound();
+  const cs = VISITED.filter(c => country(c).continent === k).sort((x, y) => country(x).name.localeCompare(country(y).name));
+  const ts = TRIPS.filter(t => t.countries.some(c => cs.includes(c)));
+  const pins = placePins(ts).filter(p => cs.some(c => inCountry(c, p.lat, p.lon)));
+  return `<nav class="crumbs"><a href="#/map">Map</a></nav>` +
+    head(esc(k), `${cs.length} of ${D.continentTotals[k]} countries · ${plural(ts.length, "trip")}`) +
+    `<div class="trip-map wide">${worldMap(pins, { ...mapOpts(cs), focus: focusOn(cs, pins), labels: true, aria: `Map of the countries visited in ${k}` })}</div>
+    <section class="sec"><h2 class="sec-h">Countries</h2><div class="country-grid">${cs.map(c => `<a class="ctile" href="#/country/${c}"><b>${esc(country(c).name)}</b><small>${plural(tripsIn(c).length, "trip")} · ${[...new Set(tripsIn(c).map(year))].join(", ")}</small></a>`).join("")}</div></section>
+    <section class="sec"><h2 class="sec-h">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div></section>`;
+}
 function pageCountry(code) {
   const k = D.countries[code]; if (!k) return notFound();
   const ts = TRIPS.filter(t => t.countries.includes(code));
   const pins = placePins(ts).filter(p => inCountry(code, p.lat, p.lon));   // only the places that are in this country
-  return `<nav class="crumbs"><a href="#/map">Map</a> › <a href="#/trips/by-country">${esc(k.continent)}</a></nav>` +
+  return `<nav class="crumbs"><a href="#/map">Map</a> › <a href="#/continent/${encodeURIComponent(k.continent)}">${esc(k.continent)}</a></nav>` +
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
     `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins), labels: true, aria: `Map of ${k.name}` })}</div>
     ${ts.length ? `<h2 class="sr-only">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div>` : `<p class="note">${code === D.home ? "Home, so not counted as a country visited." : "No trips here yet."}</p>`}`;
@@ -471,59 +483,48 @@ function pageSearch(q) {
     (n ? "" : `<p class="note">Nothing found. Placeholder posts aren’t searched.</p>`);
 }
 // ---------- sidebar ----------
-// TRIAL (21 Nov, her question about the sidebar): four ways to lay it out, picked with the switch at the bottom right.
-//   now: as before (a "Years" list under the menu)
-//   a:   folders: Trips opens to the years; Map opens to the continents, then their countries
-//   b:   Trips opens to "By year" and "By country" (continents, then countries); Map is just the map
-//   c:   a short sidebar; the Trips page has By year / By country
-const NAV_TRIES = { now: "As now", a: "A", b: "B", c: "C" };
-let NAV_TRY = (() => { const q = new URLSearchParams(location.search).get("nav"); if (q in NAV_TRIES) return q; try { const s = localStorage.getItem("jt-navtry"); if (s in NAV_TRIES) return s; } catch (e) {} return "now"; })();
-const navOpen = new Set();   // folders she opened (kept while the page is open)
+// One level at a time, like Sim World's worlds › neighbourhoods › lots (her pick, 21 Nov): only the main items show;
+// Trips opens to its years, a year to its trips; Map opens to its continents, a continent to its countries.
+// A click opens one and goes to its page; a click on an open one closes it (and stays on the page).
+// What you're on opens by itself. Search box at the top.
+const navOpen = new Set();   // what she opened ("key") or closed ("-key"); closed ones open again on a new page inside them
 const CONTINENTS = () => Object.keys(D.continentTotals).filter(k => VISITED.some(c => country(c).continent === k));
 const tripsIn = c => TRIPS.filter(t => t.countries.includes(c));
 function nav(route) {
-  const item = (href, ic, label, on, n, cls = "") => `<a href="${href}" class="${cls} ${on ? "on" : ""}">${icon(ic)}<span>${label}</span>${n != null ? `<small>${n}</small>` : ""}</a>`;
-  const r = route[0] || "";
-  const here = r === "country" ? route[1] : "";
-  const onTrips = r === "trips" || r === "trip" || r === "year", onMap = r === "map" || r === "countries" || r === "country";
-  // a folder: a row (a link or just a label) with a little arrow that opens what's inside
-  const fold = (key, row, body, auto) => {
-    const open = navOpen.has(key) || (auto && !navOpen.has("-" + key));
-    return `<div class="fold ${open ? "open" : ""}" data-fold="${key}"><div class="fold-row">${row}<button type="button" class="fold-btn" aria-expanded="${open}" aria-label="${open ? "Close" : "Open"}">${icon("chevron-right")}</button></div><div class="fold-body"${open ? "" : " hidden"}>${body}</div></div>`;
-  };
-  const label = (ic, text, n) => `<span class="fold-label">${icon(ic)}<span>${text}</span>${n != null ? `<small>${n}</small>` : ""}</span>`;
-  const years = YEARS.map(y => item(`#/year/${y}`, "calendar", y, r === "year" && route[1] === y, TRIPS.filter(t => year(t) === y).length, "sub")).join("");
-  const byCountry = CONTINENTS().map(k => {
-    const cs = VISITED.filter(c => country(c).continent === k).sort((x, y) => country(x).name.localeCompare(country(y).name));
-    return fold("c-" + k, label("globe", esc(k), cs.length), cs.map(c => item(`#/country/${c}`, "flag", esc(country(c).name), here === c, tripsIn(c).length, "sub2")).join(""), here && country(here).continent === k);
+  const item = (href, ic, label, on) => `<a href="${href}" class="${on ? "on" : ""}">${icon(ic)}<span>${label}</span></a>`;
+  const r = route[0] || "", here = r === "country" ? route[1] : "";
+  const t = r === "trip" ? tripById[route[1]] : null, yOn = r === "year" ? route[1] : t ? year(t) : "";
+  const kOn = r === "continent" ? route[1] : here ? country(here).continent : "";
+  const at = route.join("/");
+  if (at !== nav.at) { [...navOpen].filter(k => k[0] === "-").forEach(k => navOpen.delete(k)); nav.at = at; }
+  const isOpen = (key, auto) => navOpen.has(key) || (auto && !navOpen.has("-" + key));
+  const kids = (body, open) => open ? `<div class="nav-kids">${body}</div>` : "";
+  const opener = (key, href, ic, text, on, n, open, cls = "") => `<a href="${href}" data-key="${key}" class="${cls} ${on ? "on" : ""} ${open ? "is-open" : ""}" aria-expanded="${open}">${ic ? icon(ic) : ""}<span>${text}</span>${n != null ? `<small>${n}</small>` : ""}</a>`;
+  const tripsOpen = isOpen("trips", r === "trips" || r === "trip" || r === "year"), mapOpen = isOpen("map", ["map", "countries", "country", "continent"].includes(r));
+  const years = YEARS.map(y => {
+    const ts = TRIPS.filter(x => year(x) === y), open = isOpen("y" + y, y === yOn);
+    return opener("y" + y, `#/year/${y}`, "", y, r === "year" && route[1] === y, ts.length, open, "kid") +
+      kids(ts.map(x => `<a href="#/trip/${x.id}" class="kid2 ${t && t.id === x.id ? "on" : ""}"><span>${esc(x.title)}</span></a>`).join(""), open);
   }).join("");
-  const home = item("#/", "home", "Home", r === ""), stats = item("#/stats", "chart", "Stats", r === "stats");
-  const rest = `${item("#/timeline", "clock", "Timeline", r === "timeline")}${item("#/search", "search", "Search", r === "search")}<a href="#/surprise" class="surprise">${icon("shuffle")}<span>Surprise me</span></a>${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}`;
-  const trips = item("#/trips", "plane", "Trips", onTrips, TRIPS.length), map = item("#/map", "map", "Map", onMap, VISITED.length);
-  if (NAV_TRY === "a") return `<div class="nav-main">${home}${fold("trips", trips, years, onTrips)}${fold("map", map, byCountry, onMap)}${stats}${rest}</div>`;
-  if (NAV_TRY === "b") return `<div class="nav-main">${home}${fold("trips", item("#/trips", "plane", "Trips", onTrips, TRIPS.length),
-      fold("by-year", label("calendar", "By year"), years, r === "year" || r === "trip") + fold("by-country", label("flag", "By country"), byCountry, r === "country" || route[1] === "by-country"),
-      onTrips || r === "country")}${item("#/map", "map", "Map", r === "map" || r === "countries", VISITED.length)}${stats}${rest}</div>`;
-  if (NAV_TRY === "c") return `<div class="nav-main">${home}${trips}${map}${stats}${rest}</div>`;
-  return `<div class="nav-main">${home}${trips}${map}${stats}${rest}</div>
-    <div class="nav-years"><div class="nav-h">Years</div>${YEARS.map(y => item(`#/year/${y}`, "calendar", y, r === "year" && route[1] === y, TRIPS.filter(t => year(t) === y).length)).join("")}</div>`;
+  const continents = CONTINENTS().map(k => {
+    const cs = VISITED.filter(c => country(c).continent === k).sort((x, y) => country(x).name.localeCompare(country(y).name)), open = isOpen("k" + k, k === kOn);
+    return opener("k" + k, `#/continent/${encodeURIComponent(k)}`, "", esc(k), r === "continent" && route[1] === k, cs.length, open, "kid") +
+      kids(cs.map(c => `<a href="#/country/${c}" class="kid2 ${here === c ? "on" : ""}"><span>${esc(country(c).name)}</span><small>${tripsIn(c).length}</small></a>`).join(""), open);
+  }).join("");
+  const search = `<form class="nav-search" role="search" onsubmit="event.preventDefault(); location.hash = '#/search/' + encodeURIComponent(this.q.value.trim())">${icon("search")}<input name="q" type="search" placeholder="Search…" aria-label="Search trips, posts and countries" value="${r === "search" && route[1] ? esc(route[1]) : ""}"></form>`;
+  return `${search}<div class="nav-main">${item("#/", "home", "Home", r === "")}
+    ${opener("trips", "#/trips", "plane", "Trips", r === "trips", TRIPS.length, tripsOpen)}${kids(years, tripsOpen)}
+    ${opener("map", "#/map", "map", "Map", r === "map" || r === "countries", VISITED.length, mapOpen)}${kids(continents, mapOpen)}
+    ${item("#/stats", "chart", "Stats", r === "stats")}${item("#/timeline", "clock", "Timeline", r === "timeline")}<a href="#/surprise" class="surprise">${icon("shuffle")}<span>Surprise me</span></a>${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>`;
 }
-// opening and closing a folder without leaving the page
+const navRoute = () => location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
 $("#nav").addEventListener("click", e => {
-  const b = e.target.closest(".fold-btn, .fold-label"); if (!b) return;
-  const f = b.closest(".fold"), key = f.dataset.fold, open = !f.classList.contains("open");
-  f.classList.toggle("open", open); f.querySelector(":scope > .fold-body").hidden = !open;
-  const btn = f.querySelector(":scope > .fold-row > .fold-btn"); btn.setAttribute("aria-expanded", open); btn.setAttribute("aria-label", open ? "Close" : "Open");
-  navOpen.delete(open ? "-" + key : key); navOpen.add(open ? key : "-" + key);
+  const a = e.target.closest("a[data-key]"); if (!a) return;
+  const key = a.dataset.key;
+  if (a.getAttribute("aria-expanded") === "true") { e.preventDefault(); navOpen.delete(key); navOpen.add("-" + key); $("#nav").innerHTML = nav(navRoute()); }
+  else { navOpen.delete("-" + key); navOpen.add(key); if (a.getAttribute("href") === location.hash) { e.preventDefault(); $("#nav").innerHTML = nav(navRoute()); } }
 });
-// the trial switch, bottom right (goes once she picks)
-function navSwitch() {
-  const el = document.createElement("div"); el.className = "try-switch"; el.setAttribute("role", "group"); el.setAttribute("aria-label", "Sidebar trial");
-  el.innerHTML = `<b>Sidebar</b>${Object.entries(NAV_TRIES).map(([k, v]) => `<button type="button" data-k="${k}" aria-pressed="${k === NAV_TRY}">${v}</button>`).join("")}`;
-  el.onclick = e => { const b = e.target.closest("button"); if (!b) return; NAV_TRY = b.dataset.k; try { localStorage.setItem("jt-navtry", NAV_TRY); } catch (x) {}
-    el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); document.documentElement.dataset.navtry = NAV_TRY; $("#nav").innerHTML = nav(location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent)); render(); };
-  document.body.appendChild(el); document.documentElement.dataset.navtry = NAV_TRY;
-}
+
 function render() {
   const route = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const [r, a, b] = route;
@@ -538,6 +539,7 @@ function render() {
   else if (r === "search") html = pageSearch(a);
   else if (r === "countries") html = pageMap();   // the old Countries address still works
   else if (r === "country") html = pageCountry(a);
+  else if (r === "continent") html = pageContinent(a);
   else if (r === "stats") html = pageStats();
   else if (r === "write") html = pageWrite();
   else html = notFound();
@@ -578,6 +580,5 @@ if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange"
   }).catch(() => {});
 });
 
-navSwitch();
 // her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper: set on <html> in index.html
 render();

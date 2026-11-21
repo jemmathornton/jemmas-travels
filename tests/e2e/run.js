@@ -48,6 +48,7 @@ const routes = page => page.evaluate(() => {
   for (const t of D.trips) r.push('#/trip/' + t.id);
   for (const p of D.posts) r.push(`#/trip/${p.trip}/${p.slug}`);
   for (const c of new Set(D.trips.flatMap(t => t.countries))) r.push('#/country/' + c);
+  for (const k of new Set(D.trips.flatMap(t => t.countries).filter(c => c !== D.home).map(c => D.countries[c].continent))) r.push('#/continent/' + encodeURIComponent(k));
   return r;
 });
 const shown = page => page.evaluate(() => ({
@@ -90,7 +91,7 @@ if (SUITE === 'her') {
   });
 
   test('sidebar counts match the data', async () => {
-    const page = await open();
+    const page = await open({ hash: '#/trips' });   // Trips open, showing its years
     const r = await page.evaluate(() => {
       const n = href => +document.querySelector(`#nav a[href="${href}"] small`)?.textContent;
       const D = TRAVELS, visited = new Set(D.trips.flatMap(t => t.countries).filter(c => c !== D.home));
@@ -448,31 +449,46 @@ if (SUITE === 'her') {
       nav: [...document.querySelectorAll('#nav .nav-main a span')].map(s => s.textContent) }));
     ok(r.map && r.ring && r.tiles > 0, JSON.stringify(r)); ok(!r.nav.includes('Countries'), r.nav.join(', '));
     await go(page, '#/countries'); eq((await shown(page)).h1, 'Map');
-    await go(page, '#/country/FR'); eq(await page.evaluate(() => document.querySelector('#nav a.on span').textContent), 'Map', 'country pages light up Map');
+    await go(page, '#/country/FR'); eq(await page.evaluate(() => [document.querySelector('#nav a.on span').textContent, document.querySelector('#nav a[data-key=map]').classList.contains('is-open')]), ['France', true], 'country pages: Map open, the country lit');
     await page.close2();
   });
 
-  test('sidebar trial A, B, C: folders open to years and countries, every country listed, links work, phone too', async () => {
-    for (const [w, h, phone] of [WIDTHS[0], WIDTHS[3]]) for (const k of ['a', 'b', 'c']) {
+  test('sidebar one level at a time (her pick, like Sim World): Trips › years › trips, Map › continents › countries; a click opens, a second closes', async () => {
+    for (const [w, h, phone] of [WIDTHS[0], WIDTHS[3]]) { const k = 'a';
       const page = await open({ width: w, height: h, phone, hash: '#/country/JP' });
-      await page.evaluate(k => document.querySelector(`.try-switch button[data-k="${k}"]`).click(), k);
-      const r = await page.evaluate(() => {
+      const info = () => page.evaluate(() => {
         const D = TRAVELS, visited = [...new Set(D.trips.flatMap(t => t.countries))].filter(c => c !== D.home);
-        const links = [...document.querySelectorAll('#nav a')].map(a => a.getAttribute('href'));
-        return { visited, links, on: [...document.querySelectorAll('#nav a.on')].map(a => a.getAttribute('href')), err: document.documentElement.scrollWidth - innerWidth };
+        return { visited, links: [...document.querySelectorAll('#nav a')].map(a => a.getAttribute('href')), on: [...document.querySelectorAll('#nav a.on')].map(a => a.getAttribute('href')), err: document.documentElement.scrollWidth - innerWidth };
       });
+      const r = await info();
       eq(r.err, 0, `${k} ${w}: sideways scrolling`);
-      if (k === 'c') { ok(!r.links.some(l => l.startsWith('#/country/') || l.startsWith('#/year/')), 'C has no lists'); }
-      else {
-        for (const c of r.visited) ok(r.links.includes('#/country/' + c), `${k}: ${c} missing from the sidebar`);
-        ok(r.on.includes('#/country/JP'), `${k}: Japan lit up on its page (${r.on})`);
-        // a folder opens and closes without leaving the page
-        const before = await page.evaluate(() => location.hash);
-        const t = await page.evaluate(() => { const f = document.querySelector('[data-fold="c-Europe"]'); const was = f.classList.contains('open'); f.querySelector('.fold-btn').click(); return [was, f.classList.contains('open'), f.querySelector('.fold-body').hidden]; });
-        eq(t, [false, true, false], `${k}: Europe folder opens`);
-        eq(await page.evaluate(() => location.hash), before, 'still on the same page');
-        await go(page, '#/year/2024');
-        ok(await page.evaluate(() => [...document.querySelectorAll('#nav a.on')].some(a => a.getAttribute('href') === '#/year/2024')), `${k}: 2024 lit up on its page`);
+      {
+        // A, one level at a time (like Sim World's worlds > neighbourhoods > lots): Trips > years > trips, Map > continents > countries
+        ok(r.on.includes('#/country/JP') && r.links.includes('#/country/IN'), `a: Map > Asia open with Japan lit (${r.on})`);
+        ok(!r.links.includes('#/country/FR') && !r.links.some(l => l.startsWith('#/year/')), 'a: Europe and Trips stay closed');
+        await go(page, '#/');
+        ok(!(await info()).links.some(l => /^#\/(year|continent|country|trip)\//.test(l)), 'a: home shows only the main items');
+        const click = async sel => { await page.evaluate(sel => document.querySelector(sel).click(), sel); await page.waitForTimeout(80); };
+        await click('#nav a[data-key=trips]');
+        eq(await page.evaluate(() => location.hash), '#/trips');
+        ok((await info()).links.includes('#/year/2024'), 'a: Trips opens to years');
+        await click('#nav a[data-key=y2024]');
+        ok((await info()).links.includes('#/trip/japan-2024'), 'a: 2024 opens to its trips');
+        await click('#nav a[data-key=y2024]');
+        ok(!(await info()).links.includes('#/trip/japan-2024'), 'a: a second click closes 2024');
+        eq(await page.evaluate(() => location.hash), '#/year/2024', 'closing stays on the page');
+        await click('#nav a[data-key=trips]');
+        ok(!(await info()).links.includes('#/year/2024'), 'a: a second click closes Trips');
+        await go(page, '#/trip/japan-2024/02');
+        const t = await info();
+        ok(t.on.includes('#/trip/japan-2024') && t.links.includes('#/trip/france-spain-2024'), 'a: Trips > 2024 open on a post, Japan lit: ' + t.on);
+        await go(page, '#/continent/Europe');
+        eq((await shown(page)).h1, 'Europe');
+        ok((await info()).links.includes('#/country/FR'), 'a: Europe open on its page');
+        if (!phone) {
+          await page.fill('.nav-search input', 'japan'); await page.press('.nav-search input', 'Enter'); await page.waitForTimeout(100);
+          eq(await page.evaluate(() => location.hash), '#/search/japan', 'search box');
+        }
       }
       await go(page, '#/trips/by-country');
       const bc = await page.evaluate(() => ({ h1: document.querySelector('#view h1').textContent, countries: [...document.querySelectorAll('.by-country h3 a')].map(a => a.getAttribute('href')), tab: document.querySelector('.tabs a.on')?.textContent }));
