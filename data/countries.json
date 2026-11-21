@@ -1,0 +1,21 @@
+{
+  "_note": "Country names, continents and a map point (lat, lon) for each country on her trips. Add a line when a trip goes somewhere new. continentTotals: countries per continent (195 = UN members plus the Vatican and Palestine), for the tracker. home: not counted as visited.",
+  "home": "GB",
+  "continentTotals": {"Europe": 44, "Asia": 48, "Africa": 54, "North America": 23, "South America": 12, "Oceania": 14},
+  "countries": {
+    "GB": {"name": "United Kingdom", "continent": "Europe", "at": [54.0, -2.5]},
+    "IT": {"name": "Italy", "continent": "Europe", "at": [42.8, 12.5]},
+    "NO": {"name": "Norway", "continent": "Europe", "at": [61.0, 9.0]},
+    "DK": {"name": "Denmark", "continent": "Europe", "at": [56.0, 9.5]},
+    "SE": {"name": "Sweden", "continent": "Europe", "at": [62.0, 15.0]},
+    "PT": {"name": "Portugal", "continent": "Europe", "at": [39.6, -8.0]},
+    "FR": {"name": "France", "continent": "Europe", "at": [46.6, 2.4]},
+    "ES": {"name": "Spain", "continent": "Europe", "at": [40.2, -3.6]},
+    "BR": {"name": "Brazil", "continent": "South America", "at": [-10.0, -52.0]},
+    "AR": {"name": "Argentina", "continent": "South America", "at": [-34.0, -64.0]},
+    "JP": {"name": "Japan", "continent": "Asia", "at": [36.2, 138.2]},
+    "IN": {"name": "India", "continent": "Asia", "at": [22.0, 79.0]},
+    "US": {"name": "United States", "continent": "North America", "at": [39.8, -98.6]},
+    "CA": {"name": "Canada", "continent": "North America", "at": [56.0, -106.0]}
+  }
+}

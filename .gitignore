@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.lnk
+logs/
+*.tmp
+for-jemma/looks/
