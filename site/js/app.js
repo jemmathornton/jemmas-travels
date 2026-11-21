@@ -553,24 +553,43 @@ function render() {
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
-$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Map: Natural Earth · Fonts: Instrument Serif and Manrope · Icons by Lucide</span><div class="foot-links"><button class="mode-btn" id="topBtn" type="button">${icon("arrow-up")}Back to top</button><button class="mode-btn" id="modeBtn" type="button"></button></div>`;
+// the footer is in index.html (the family layout, 21 Nov); here its icons and buttons
+document.querySelector("#topBtn .ico").outerHTML = icon("arrow-up");
 // Back to top beside Dark mode (her ask, 21 Nov, as on Jemma’s Journals): to the top, and keyboard focus with it
 $("#topBtn").onclick = () => { window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); $("#view").focus({ preventScroll: true }); };
-// dark mode: light unless the footer button is pressed; remembered on this device (her pick, 21 Nov, like Jemma’s Journals)
-function setMode(m) {
+// dark mode (the family rules, 21 Nov): light unless the footer button is pressed; one setting for all her sites, localStorage "jj-mode"
+// (index.html's head script sets data-mode before the page is drawn and moves the old "jt-mode" over once)
+const BAR = { light: "#ECF1EA", dark: "#15212C" };   // theme-color: the sidebar / top bar colour in each mode
+function setMode(m, save) {
   document.documentElement.dataset.mode = m;
-  try { localStorage.setItem("jt-mode", m); } catch (e) {}
-  $("#modeBtn").innerHTML = m === "dark" ? `${icon("sun")}Light mode` : `${icon("moon")}Dark mode`;
-  document.querySelectorAll('link[rel="icon"][data-dark]').forEach(l => { l.dataset.light ||= l.getAttribute("href"); l.href = m === "dark" ? l.dataset.dark : l.dataset.light; });
+  if (save) try { localStorage.setItem("jj-mode", m); } catch (e) {}
+  const b = $("#modeBtn");
+  b.querySelector(".ico, svg").outerHTML = icon(m === "dark" ? "sun" : "moon");
+  b.querySelector(".txt").textContent = m === "dark" ? "Light mode" : "Dark mode";
+  b.setAttribute("aria-pressed", m === "dark");
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", BAR[m]);
 }
-$("#modeBtn").onclick = () => setMode(document.documentElement.dataset.mode === "dark" ? "light" : "dark");
-setMode((() => { try { return localStorage.getItem("jt-mode") === "dark" ? "dark" : "light"; } catch (e) { return "light"; } })());
-$("#menuBtn").innerHTML = icon("menu");
-// phone menu: slides in from the left over the page (her ask, 21 Nov: it used to push the page down)
-function setMenu(o) { document.body.classList.toggle("menu-open", o); $("#menuBtn").setAttribute("aria-expanded", o); $("#menuBtn").innerHTML = icon(o ? "x" : "menu"); }
-$("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-open"));
-const scrim = document.createElement("div"); scrim.className = "scrim"; scrim.onclick = () => { setMenu(false); $("#menuBtn").focus(); }; $("#side").appendChild(scrim);
-addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("menu-open")) { setMenu(false); $("#menuBtn").focus(); } });
+$("#modeBtn").onclick = () => setMode(document.documentElement.dataset.mode === "dark" ? "light" : "dark", true);
+setMode(document.documentElement.dataset.mode === "dark" ? "dark" : "light");
+// the menu on narrow screens (the family rules, 21 Nov): at 900px and below the sidebar is a drawer sliding in from the left over the page
+// (her ask, 21 Nov), Menu button on the left; closes on a link, Escape or the scrim; inert while closed; the page behind doesn't scroll
+$("#menuIco").outerHTML = icon("menu");
+const NARROW = matchMedia("(max-width: 900px)");
+function setMenu(o, back) {
+  const narrow = NARROW.matches; o = o && narrow;
+  const was = document.body.classList.contains("menu-open");
+  document.body.classList.toggle("menu-open", o);
+  document.documentElement.classList.toggle("nav-lock", o);
+  $("#menuBtn").setAttribute("aria-expanded", o);
+  $("#side").inert = narrow && !o;
+  $("#main").inert = o;
+  if (o && !was) $("#side a").focus();
+  else if (!o && was && back) $("#menuBtn").focus();
+}
+$("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-open"), true);
+$("#scrim").onclick = () => setMenu(false, true);
+addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("menu-open")) setMenu(false, true); });
+NARROW.addEventListener("change", () => setMenu(false));
 addEventListener("hashchange", render);
 // on her PC: if the site has been rebuilt since this page was opened, load the new version (so she never sees an old copy)
 if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange", () => {

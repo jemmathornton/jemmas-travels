@@ -14,7 +14,7 @@ const SHOTS = [
   const b = await chromium.launch({ channel: 'msedge' });
   for (const [name, hash, dark, h] of SHOTS) {
     const ctx = await b.newContext({ viewport: { width: 1600, height: h } });
-    if (dark) await ctx.addInitScript(() => localStorage.setItem('jt-mode', 'dark'));
+    if (dark) await ctx.addInitScript(() => localStorage.setItem('jj-mode', 'dark'));
     const p = await ctx.newPage();
     await p.route('http://localhost:8099/**', r => {
       const u = new URL(r.request().url());
