@@ -1,0 +1,145 @@
+"""Check data/ for mistakes before building: python -X utf8 tools/check_data.py  (prints problems; exit 1 if any).
+
+Checks trips (ids, dates, countries, places), countries (names, continents, map codes) and posts (header, days or
+dates, photos, photo markers pointing at photos that exist). Used by the tests too (problems() returns the list).
+"""
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(os.environ.get("TRAVELS_ROOT", Path(__file__).resolve().parent.parent))
+CONTINENTS = {"Europe", "Asia", "Africa", "North America", "South America", "Oceania"}
+WHEN = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]))?$")
+DAYS = re.compile(r"^\d+(\s*-\s*\d+)?$")
+DATE = r"\d{4}-\d{2}-\d{2}"
+DATES = re.compile(rf"^{DATE}(\s+to\s+{DATE})?$")
+MARK = re.compile(r"^\[(photos?) (\d+)(?:\s*-\s*(\d+))?((?:\s+(?:left|right|wide|tall|mosaic))*)\s*(?::\s*(.+))?\]$", re.I)
+LOOKS_LIKE_MARK = re.compile(r"^\[photos?\b", re.I)
+
+
+def read_post(path):
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", text, re.S)
+    if not m:
+        return None, None
+    meta = {}
+    for line in m.group(1).splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            meta[k.strip().lower()] = v.strip()
+    paras = [p.strip() for p in re.split(r"\n\s*\n", m.group(2).strip()) if p.strip()]
+    return meta, paras
+
+
+def problems(root=ROOT):
+    root = Path(root)
+    out = []
+    try:
+        trips = json.loads((root / "data" / "trips.json").read_text(encoding="utf-8"))["trips"]
+        cdata = json.loads((root / "data" / "countries.json").read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001 - report anything unreadable as a problem
+        return [f"data files can’t be read: {e}"]
+    countries = cdata.get("countries", {})
+    for code, c in countries.items():
+        if not re.fullmatch(r"[A-Z]{2}", code):
+            out.append(f"countries.json: {code!r} isn’t a two-letter code")
+        if not c.get("name"):
+            out.append(f"countries.json: {code} has no name")
+        if c.get("continent") not in CONTINENTS:
+            out.append(f"countries.json: {code} continent {c.get('continent')!r} isn’t one of {sorted(CONTINENTS)}")
+        at = c.get("at")
+        if not (isinstance(at, list) and len(at) == 2 and -90 <= at[0] <= 90 and -180 <= at[1] <= 180):
+            out.append(f"countries.json: {code} map point {at!r} isn’t [lat, lon]")
+        if not re.fullmatch(r"\d{3}", str(c.get("iso", ""))):
+            out.append(f"countries.json: {code} needs its 3-digit ISO number (iso) for the map")
+    if cdata.get("home") not in countries:
+        out.append(f"countries.json: home {cdata.get('home')!r} isn’t in the list")
+    if sum(cdata.get("continentTotals", {}).values()) <= 0:
+        out.append("countries.json: continentTotals missing")
+    ids = [t.get("id") for t in trips]
+    for dup in {i for i in ids if ids.count(i) > 1}:
+        out.append(f"trips.json: id {dup!r} used twice")
+    for t in trips:
+        tid = t.get("id", "?")
+        if not re.fullmatch(r"[a-z0-9-]+", str(tid)):
+            out.append(f"trips.json: id {tid!r} should be lower case letters, numbers and dashes")
+        if not t.get("title"):
+            out.append(f"trips.json: {tid} has no title")
+        f, to = str(t.get("from", "")), str(t.get("to", ""))
+        if not WHEN.match(f) or not WHEN.match(to):
+            out.append(f"trips.json: {tid} from/to must be YYYY or YYYY-MM (got {f!r}, {to!r})")
+        elif len(f) != len(to):
+            out.append(f"trips.json: {tid} from and to should both have a month, or neither")
+        elif to < f:
+            out.append(f"trips.json: {tid} ends before it starts")
+        if not t.get("countries"):
+            out.append(f"trips.json: {tid} has no countries")
+        for c in t.get("countries", []):
+            if c not in countries:
+                out.append(f"trips.json: {tid} country {c} isn’t in countries.json")
+        for p in t.get("places", []) or []:
+            if not (isinstance(p, list) and len(p) == 3 and isinstance(p[0], str) and -90 <= p[1] <= 90 and -180 <= p[2] <= 180):
+                out.append(f"trips.json: {tid} place {p!r} should be [name, lat, lon]")
+    posts = root / "data" / "posts"
+    if posts.exists():
+        for d in sorted(posts.iterdir()):
+            if not d.is_dir():
+                continue
+            if d.name not in ids:
+                out.append(f"posts/{d.name}: no trip with that id")
+            for f in sorted(d.glob("*.md")):
+                where = f"posts/{d.name}/{f.name}"
+                meta, paras = read_post(f)
+                if meta is None:
+                    out.append(f"{where}: needs a header between --- lines")
+                    continue
+                if not meta.get("title"):
+                    out.append(f"{where}: no title")
+                if meta.get("days") and not DAYS.match(meta["days"]):
+                    out.append(f"{where}: days {meta['days']!r} should be like 3 or 2-4")
+                if meta.get("dates") and not DATES.match(meta["dates"]):
+                    out.append(f"{where}: dates {meta['dates']!r} should be like 2024-09-05 or 2024-09-05 to 2024-09-07")
+                photos = meta.get("photos", "").strip()
+                if photos.isdigit():
+                    count = int(photos)
+                else:
+                    names = [p.strip() for p in photos.split(",") if p.strip()]
+                    count = len(names)
+                    for n in names:
+                        if not (root / "site" / "photos" / d.name / n).exists():
+                            out.append(f"{where}: photo {n} isn’t in site/photos/{d.name}/")
+                if meta.get("placeholder", "").lower() in ("yes", "true"):
+                    # a placeholder post: everything shown must be marked, so no made-up words pass as hers
+                    for key in ("title", "place"):
+                        if meta.get(key) and not meta[key].startswith("[placeholder]"):
+                            out.append(f"{where}: placeholder post, but its {key} isn’t marked [placeholder]")
+                    for para in paras:
+                        if not LOOKS_LIKE_MARK.match(para) and not para.startswith("[placeholder]"):
+                            out.append(f"{where}: placeholder post, but {para[:40]!r} isn’t marked [placeholder]")
+                        m = MARK.match(para) if LOOKS_LIKE_MARK.match(para) else None
+                        if m and m.group(5) and not m.group(5).startswith("[placeholder]"):
+                            out.append(f"{where}: placeholder post, but the caption {m.group(5)[:30]!r} isn’t marked [placeholder]")
+                for para in paras:
+                    if LOOKS_LIKE_MARK.match(para):
+                        m = MARK.match(para)
+                        if not m:
+                            out.append(f"{where}: {para[:40]!r} looks like a photo marker but isn’t one (see for-jemma/post-templates.md)")
+                            continue
+                        a = int(m.group(2)); b = int(m.group(3) or a)
+                        if b < a or a < 1 or b > count:
+                            out.append(f"{where}: {para[:40]!r} asks for photo {a}{'–' + str(b) if b != a else ''} but the post has {count}")
+    return out
+
+
+def main():
+    found = problems()
+    for p in found:
+        print(p)
+    print("data looks fine" if not found else f"{len(found)} problem(s)")
+    sys.exit(1 if found else 0)
+
+
+if __name__ == "__main__":
+    main()

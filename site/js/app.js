@@ -20,12 +20,11 @@ const VISITED = [...new Set(TRIPS.flatMap(t => t.countries))].filter(c => c !== 
 const TOTAL_COUNTRIES = Object.values(D.continentTotals).reduce((a, b) => a + b, 0);
 
 function monthOf(s) { return s.length > 4 ? +s.slice(5, 7) : 0; }
-function fmtRange(t) {
-  const [fy, fm, ty, tm] = [year(t), monthOf(t.from), t.to.slice(0, 4), monthOf(t.to)];
-  if (!fm) return fy;
-  if (fy === ty && fm === tm) return `${MONTHS[fm - 1]} ${fy}`;
-  if (fy === ty) return `${MONTHS[fm - 1]} – ${MONTHS[tm - 1]} ${fy}`;
-  return `${MONTHS[fm - 1]} ${fy} – ${MONTHS[tm - 1]} ${ty}`;
+function fmtRange(t) { // "September 2026", "May – June 2020", "December 2026 – January 2027", "2026", "2014 – 2015"
+  const fy = t.from.slice(0, 4), fm = monthOf(t.from), ty = t.to.slice(0, 4), tm = monthOf(t.to);
+  const one = (y, m) => m ? `${MONTHS[m - 1]} ${y}` : y;
+  if (fy === ty) return fm === tm ? one(fy, fm) : fm && tm ? `${MONTHS[fm - 1]} – ${MONTHS[tm - 1]} ${fy}` : fy;
+  return `${one(fy, fm)} – ${one(ty, tm)}`;
 }
 function tripMonths(t) { // [[year, month], …] the trip touches; empty when the month isn't known
   const out = []; let y = +year(t), m = monthOf(t.from); const ty = +t.to.slice(0, 4), tm = monthOf(t.to);
@@ -33,29 +32,43 @@ function tripMonths(t) { // [[year, month], …] the trip touches; empty when th
   while (y < ty || (y === ty && m <= tm)) { out.push([y, m]); if (++m > 12) { m = 1; y++; } }
   return out;
 }
+function fmtDates(d) { // "2026-03-05" -> "5 March"; "2026-03-06 to 2026-03-07" -> "6–7 March"; across months/years in full
+  const [a, b] = String(d).split(/\s+to\s+/).map(x => x.split("-").map(Number));
+  if (!a || a.length < 3) return String(d);
+  const one = (x, withYear) => `${x[2]} ${MONTHS[x[1] - 1]}${withYear ? " " + x[0] : ""}`;
+  if (!b) return one(a);
+  if (a[0] === b[0] && a[1] === b[1]) return `${a[2]}–${b[2]} ${MONTHS[a[1] - 1]}`;
+  if (a[0] === b[0]) return `${one(a)} – ${one(b)}`;
+  return `${one(a, true)} – ${one(b, true)}`;
+}
 function dayLabel(p) {
-  if (p.dates) return p.dates.replace(" to ", " – ");
+  if (p.dates) return fmtDates(p.dates);
   if (!p.days) return "";
-  const [a, b] = p.days.split("-").map(s => s.trim());
+  const [a, b] = p.days.split(/\s*[-–]\s*/);
   return b ? `Days ${a}–${b}` : `Day ${a}`;
 }
-function dayCount(p) { if (!p.days) return 1; const [a, b] = p.days.split("-").map(Number); return b ? b - a + 1 : 1; }
-function pinsFor(trips) {
-  const pins = [];
-  for (const t of trips) {
-    if (t.places) for (const [name, lat, lon] of t.places) pins.push({ lat, lon, label: name, title: `${name} · ${t.title}`, href: `#/trip/${t.id}` });
-    for (const c of t.countries) {
-      if (t.places && t.places.length >= t.countries.length) continue;
-      const k = country(c); pins.push({ lat: k.at[0], lon: k.at[1], label: k.name, title: `${k.name} · ${t.title}`, href: `#/trip/${t.id}` });
-    }
+function dayCount(p) { // how many days a post covers (from its days, or its dates)
+  if (p.dates) {
+    const [a, b] = String(p.dates).split(/\s+to\s+/).map(x => Date.parse(x + "T12:00:00Z"));
+    return b && a ? Math.max(1, Math.round((b - a) / 864e5) + 1) : 1;
   }
-  return pins;
+  if (!p.days) return 1;
+  const [a, b] = p.days.split(/\s*[-–]\s*/).map(Number);
+  return b > a ? b - a + 1 : 1;
 }
-function placePins(trips) { // only places she named on a trip
-  return trips.flatMap(t => (t.places || []).map(([name, lat, lon]) => ({ lat, lon, label: name, title: `${name} · ${t.title}`, href: `#/trip/${t.id}` })));
+function placePins(trips, link = true) { // only places she named on a trip
+  return trips.flatMap(t => (t.places || []).map(([name, lat, lon]) => ({ lat, lon, label: name, title: `${name} · ${t.title}`, href: link ? `#/trip/${t.id}` : null })));
 }
-function countryPins() {
-  return VISITED.map(c => { const k = country(c); return { lat: k.at[0], lon: k.at[1], label: k.name, href: `#/country/${c}` }; });
+function inCountry(c, lat, lon) { // is a point inside one of a country's shapes?
+  const shape = WORLD.hi[isoOf(c)]; if (!shape) return false;
+  return shape[1].some(r => {
+    let inside = false;
+    for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+      const xi = r[i], yi = r[i + 1], xj = r[j], yj = r[j + 1];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  });
 }
 function isoOf(c) { return country(c).iso; }
 function mapOpts(codes) { const links = {}; codes.forEach(c => { links[isoOf(c)] = `#/country/${c}`; }); return { visited: codes.map(isoOf), links }; }
@@ -82,15 +95,7 @@ function focusOn(codes, pins = []) {
   const wide = (e - w) * midLat, tall = n - s;
   if (wide < tall * 1.7) { const c = (w + e) / 2, h = tall * 1.7 / midLat / 2; w = c - h; e = c + h; }
   else if (tall < wide / 2.4) { const c = (s + n) / 2, h = wide / 2.4 / 2; s = c - h; n = c + h; }
-  return [Math.max(-180, w), Math.max(-85, s), Math.min(180, e), Math.min(85, n)];
-}
-function focusFor(pins) {
-  const lats = pins.map(p => p.lat), lons = pins.map(p => p.lon);
-  let [w, e, s, n] = [Math.min(...lons), Math.max(...lons), Math.min(...lats), Math.max(...lats)];
-  const padX = Math.max(14, (e - w) * 0.35), padY = Math.max(9, (n - s) * 0.35);
-  w -= padX; e += padX; s -= padY; n += padY;
-  if ((e - w) < (n - s) * 2.2) { const c = (w + e) / 2, h = (n - s) * 1.1; w = c - h; e = c + h; }
-  return [w, s, e, n];
+  return [Math.max(-360, w), Math.max(-85, s), Math.min(360, e), Math.min(85, n)];   // may go past 180°: the map draws across it
 }
 function km(a, b) {
   const R = 6371, r = x => x * Math.PI / 180;
@@ -106,9 +111,9 @@ function ph(text) { // her words, or a marked placeholder
   return esc(s);
 }
 function tint(id) { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997; return 160 + (h % 32); }
-function photo(trip, file, i, cls = "") {
-  if (file) return `<figure class="photo ${cls}"><img src="photos/${esc(trip)}/${esc(file)}" alt="" loading="lazy"></figure>`;
-  return `<figure class="photo empty ${cls}" style="--h:${tint(trip + i)}"><span>${icon("camera")}Your photo</span></figure>`;
+function photo(trip, file, i, cls = "", alt = "") {
+  if (file) return `<figure class="photo ${cls}"><img src="photos/${encodeURIComponent(trip)}/${encodeURIComponent(file)}" alt="${esc(alt)}" loading="lazy"></figure>`;
+  return `<figure class="photo empty ${cls}" style="--h:${tint(trip + i)}"><span>${icon("camera")}Photo to come</span></figure>`;
 }
 function cover(t) {
   const first = postsOf(t.id).flatMap(p => p.photos).find(Boolean);
@@ -126,11 +131,11 @@ function tripCard(t) {
       <div class="meta">${n ? plural(n, "post") : "No posts yet"}</div>
     </div></article>`;
 }
-function yearGroups(trips) {
+function yearGroups(trips, h = "h2") {
   const ys = [...new Set(trips.map(year))];
   return ys.map(y => {
     const ts = trips.filter(t => year(t) === y);
-    return `<section class="year-group" id="y${y}"><h2 class="year-h"><a href="#/year/${y}">${y}</a><small>${plural(ts.length, "trip")}</small></h2>
+    return `<section class="year-group" id="y${y}"><${h} class="year-h"><a href="#/year/${y}">${y}</a><small>${plural(ts.length, "trip")}</small></${h}>
       <div class="trip-grid">${ts.map(tripCard).join("")}</div></section>`;
   }).join("");
 }
@@ -161,33 +166,34 @@ function head(title, kicker, extra = "") {
 function comments() {
   return `<section class="comments" aria-label="Comments"><h2>${icon("message")}Comments</h2>
     <div class="comment-box"><textarea disabled placeholder="Comments open when the site goes online"></textarea><button disabled>Post</button></div>
-    <p class="note">Comments switch on when the site goes online (your choice, 21 Nov).</p></section>`;
+    <p class="note">Comments will open when the site goes online.</p></section>`;
 }
 
 // ---------- pages ----------
 function pageHome() {
-  const latest = TRIPS.flatMap(t => postsOf(t.id)).slice(0, 3);
+  const latest = TRIPS.flatMap(t => postsOf(t.id).slice().reverse()).slice(0, 3);   // newest trip's newest posts first
   const continents = new Set(VISITED.map(c => country(c).continent));
   return `<section class="hero">
-      <div class="hero-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), aria: "Countries visited" })}</div>
+      <div class="hero-map">${worldMap(placePins(TRIPS, false), { visited: VISITED.map(isoOf), aria: "World map with the countries visited coloured in" })}</div>
       <div class="hero-text"><div class="kicker">${plural(TRIPS.length, "trip")} · ${YEARS[YEARS.length - 1]} to ${YEARS[0]}</div>
       <h1>Jemma’s <em>Travels</em></h1>
       <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
     </section>
     ${statTiles([[TRIPS.length, "trips", "#/trips"], [VISITED.length, "countries", "#/countries"], [continents.size, "continents", "#/countries"], [YEARS.length, "years travelled", "#/stats"]])}
     ${latest.length ? `<section class="sec"><h2 class="sec-h">Latest posts</h2><div class="post-tiles">${latest.map(postTile).join("")}</div></section>` : ""}
-    <section class="sec"><h2 class="sec-h">Trips by year</h2>${yearGroups(TRIPS)}</section>`;
+    <section class="sec"><h2 class="sec-h">Trips by year</h2>${yearGroups(TRIPS, "h3")}</section>`;
 }
 function yearChips(active) {
   return `<div class="filters"><a class="fchip ${active ? "" : "on"}" href="#/trips">All</a>${YEARS.map(y => `<a class="fchip ${active === y ? "on" : ""}" href="#/year/${y}">${y}</a>`).join("")}</div>`;
 }
 function pageTrips(y) {
+  if (y !== undefined && !YEARS.includes(y)) return notFound();
   const ts = y ? TRIPS.filter(t => year(t) === y) : TRIPS;
   return head(y ? `${y}` : "Trips", y ? `${plural(ts.length, "trip")}` : `${plural(TRIPS.length, "trip")} · newest first`, yearChips(y)) + yearGroups(ts);
 }
 function pageTrip(id) {
   const t = tripById[id]; if (!t) return notFound();
-  const posts = postsOf(id), pins = pinsFor([t]);
+  const posts = postsOf(id);
   const photos = posts.reduce((n, p) => n + p.photos.length, 0);
   return `<nav class="crumbs"><a href="#/trips">Trips</a> › <a href="#/year/${year(t)}">${year(t)}</a></nav>
     <header class="trip-head">
@@ -196,7 +202,7 @@ function pageTrip(id) {
         <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div></div>
       <div class="trip-map">${worldMap(placePins([t]), { ...mapOpts(t.countries), focus: focusOn(t.countries, placePins([t])), labels: true, aria: `Map of ${t.title}` })}</div>
     </header>
-    ${posts.length ? `<div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
+    ${posts.length ? `<h2 class="sr-only">Posts</h2><div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
       : `<div class="empty-note">${icon("pen")}<p>No posts for this trip yet.</p></div>`}`;
 }
 // A post's words, with photos placed where she puts a marker on a line of its own (see for-jemma/post-templates.md):
@@ -213,7 +219,7 @@ function postBody(p) {
     const from = +m[2], to = m[3] ? +m[3] : from, opts = (m[4] || "").toLowerCase().trim().split(/\s+/).filter(Boolean), caption = m[5];
     const idx = []; for (let n = from; n <= to; n++) if (n >= 1 && n <= p.photos.length) { idx.push(n - 1); used.add(n - 1); }
     if (!idx.length) continue;
-    const pics = idx.map(j => photo(p.trip, p.photos[j], j, opts.includes("tall") ? "tall" : "")).join("");
+    const pics = idx.map(j => photo(p.trip, p.photos[j], j, opts.includes("tall") ? "tall" : "", idx.length === 1 && caption && !caption.startsWith("[placeholder]") ? caption : "")).join("");
     const cap = caption ? `<figcaption>${ph(caption)}</figcaption>` : "";
     if (idx.length === 1) {
       const where = ["left", "right", "wide"].find(o => opts.includes(o)) || "full";
@@ -245,8 +251,8 @@ function pageMap() {
   for (const c of VISITED) (byCont[country(c).continent] ||= []).push(c);
   return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`) +
     `<div class="big-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), aria: "Every country visited" })}</div>
-    <p class="note map-note">${icon("info")}Countries you’ve been to are coloured in; pins are places named on a trip. Map: Natural Earth.</p>
-    <div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
+    <p class="note map-note">${icon("info")}Countries visited are coloured in; pins are places named on a trip. Map: Natural Earth.</p>
+    <h2 class="sr-only">By continent</h2><div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
       const ts = TRIPS.filter(t => t.countries.includes(c));
       return `<li><a href="#/country/${c}">${esc(country(c).name)}</a><span>${ts.map(t => year(t)).join(", ")}</span></li>`;
     }).join("")}</ul></section>`).join("")}</div>`;
@@ -269,12 +275,14 @@ function pageCountries() {
 function pageCountry(code) {
   const k = D.countries[code]; if (!k) return notFound();
   const ts = TRIPS.filter(t => t.countries.includes(code));
-    return `<nav class="crumbs"><a href="#/countries">Countries</a> › ${esc(k.continent)}</nav>` +
+  const pins = placePins(ts).filter(p => inCountry(code, p.lat, p.lon));   // only the places that are in this country
+  return `<nav class="crumbs"><a href="#/countries">Countries</a> › ${esc(k.continent)}</nav>` +
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
-    `<div class="trip-map wide">${worldMap(placePins(ts).filter(p => ts.some(t => t.countries.length === 1)), { ...mapOpts([code]), focus: focusOn([code]), labels: true, aria: `Map of ${k.name}` })}</div>
-    <div class="trip-grid">${ts.map(tripCard).join("")}</div>`;
+    `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins), labels: true, aria: `Map of ${k.name}` })}</div>
+    <h2 class="sr-only">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div>`;
 }
 function pageStats() {
+  if (!TRIPS.length) return head("Stats", "For fun") + `<p class="note">No trips yet.</p>`;
   const first = TRIPS[TRIPS.length - 1];
   const ys = YEARS.map(Number), span = []; for (let y = ys[ys.length - 1]; y <= ys[0]; y++) span.push(y);
   const perYear = span.map(y => [y, TRIPS.filter(t => +year(t) === y).length]);
@@ -283,9 +291,9 @@ function pageStats() {
   const monthN = Array(12).fill(0); TRIPS.forEach(t => new Set(tripMonths(t).map(x => x[1])).forEach(m => monthN[m - 1]++));
   const maxM = Math.max(...monthN), topMonth = monthN.indexOf(maxM);
   const counts = VISITED.map(c => [c, TRIPS.filter(t => t.countries.includes(c)).length]).sort((a, b) => b[1] - a[1]);
-  const most = counts.filter(x => x[1] === counts[0][1]);
+  const most = counts.length && counts[0][1] > 1 ? counts.filter(x => x[1] === counts[0][1]) : [];
   const home = D.homeAt || country(D.home).at;
-  const far = VISITED.map(c => [c, km(home, country(c).at)]).sort((a, b) => b[1] - a[1])[0];
+  const far = VISITED.map(c => [c, km(home, country(c).at)]).sort((a, b) => b[1] - a[1])[0] || null;
   const busiest = Math.max(...perYear.map(x => x[1]));
   const busyYears = perYear.filter(x => x[1] === busiest).map(x => x[0]);
   const posts = D.posts.length, photos = D.posts.reduce((n, p) => n + p.photos.length, 0);
@@ -294,11 +302,11 @@ function pageStats() {
   const fact = (k, v, s) => `<div class="fact"><span class="fk">${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`;
   return head("Stats", "For fun") + `<div class="facts">
       ${fact("Countries", VISITED.length, `of ${TOTAL_COUNTRIES}`)}
-      ${fact("Continents", continents.size, "of 7")}
+      ${fact("Continents", continents.size, `of ${Object.keys(D.continentTotals).length} lived on`)}
       ${fact("Trips", TRIPS.length, `${YEARS.length} different years`)}
-      ${fact("Favourite month", MONTHS[topMonth], `${maxM} of ${TRIPS.length} trips`)}
-      ${fact("Most visited", most.map(x => esc(country(x[0]).name)).join(", "), `${plural(most[0][1], "trip")} each`)}
-      ${fact("Furthest from home", esc(country(far[0]).name), `about ${(Math.round(far[1] / 100) * 100).toLocaleString("en-GB")} km from ${esc(D.homeTown || "home")}`)}
+      ${maxM ? fact("Favourite month", MONTHS[topMonth], `${maxM} of ${TRIPS.length} trips`) : ""}
+      ${most.length ? fact("Most visited", most.map(x => esc(country(x[0]).name)).join(", "), `${plural(most[0][1], "trip")}${most.length > 1 ? " each" : ""}`) : ""}
+      ${far ? fact("Furthest from home", esc(country(far[0]).name), `about ${(Math.round(far[1] / 100) * 100).toLocaleString("en-GB")} km from ${esc(D.homeTown || "home")}`) : ""}
       ${fact("Busiest year", busyYears.join(", "), `${plural(busiest, "trip")}`)}
       ${fact("First on record", esc(first.title), esc(fmtRange(first)))}
       ${fact("Longest gap", plural(gap[0], "year"), `${gap[1]} to ${gap[2]}`)}
@@ -306,7 +314,7 @@ function pageStats() {
     </div>
     <section class="sec chart-sec"><h2 class="sec-h">Trips each year</h2>
       <div class="bars" role="img" aria-label="Trips each year">${perYear.map(([y, n]) => `<div class="bar" title="${y}: ${plural(n, "trip")}"><span class="bv">${n || ""}</span><i style="height:${n / maxY * 100}%"></i><span class="bl">${String(y).slice(2)}</span></div>`).join("")}</div>
-      <p class="note">Years from ${span[0]} to ${span[span.length - 1]}; labels are the last two digits.</p></section>
+      <p class="note">Years from ${span[0]} to ${span[span.length - 1]}; labels are the last two digits. A trip counts in the year it started.</p></section>
     <section class="sec chart-sec"><h2 class="sec-h">Which months</h2>
       <div class="months">${monthN.map((n, i) => `<div class="mcell ${n / maxM > 0.5 ? "dark" : ""}" style="--a:${n ? 0.18 + 0.82 * n / maxM : 0}" title="${MONTHS[i]}: ${plural(n, "trip")}"><b>${n || ""}</b><span>${MONTHS[i].slice(0, 3)}</span></div>`).join("")}</div>
       <p class="note">Trips away in each month.</p></section>`;
@@ -350,18 +358,19 @@ function render() {
   $("#nav").innerHTML = nav(route);
   document.body.dataset.page = r || "home";
   setMenu(false);
+  if (render.done) $("#view").focus({ preventScroll: true });   // after a click, keyboard and screen readers start at the new page
+  render.done = true;
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
-$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Fonts: Instrument Serif and Manrope · Icons by Lucide</span>`;
+$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Map: Natural Earth · Fonts: Instrument Serif and Manrope · Icons by Lucide</span>`;
 $("#menuBtn").innerHTML = icon("menu");
 // phone menu: slides in from the left over the page (her ask, 21 Nov: it used to push the page down)
 function setMenu(o) { document.body.classList.toggle("menu-open", o); $("#menuBtn").setAttribute("aria-expanded", o); $("#menuBtn").innerHTML = icon(o ? "x" : "menu"); }
 $("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-open"));
-const scrim = document.createElement("div"); scrim.className = "scrim"; scrim.onclick = () => setMenu(false); $("#side").appendChild(scrim);
-addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });
+const scrim = document.createElement("div"); scrim.className = "scrim"; scrim.onclick = () => { setMenu(false); $("#menuBtn").focus(); }; $("#side").appendChild(scrim);
+addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("menu-open")) { setMenu(false); $("#menuBtn").focus(); } });
 addEventListener("hashchange", render);
 
-// ---------- her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper ----------
-Object.assign(document.documentElement.dataset, { look: "f", layout: "side-pale-grid", header: "banner", bg: "plain" });
+// her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper: set on <html> in index.html
 render();

@@ -498,7 +498,7 @@ const TRAVELS = {
    "placeholder": true,
    "text": [
     "[placeholder] Your notes for this day go here, in your own words. A post can be one day or several days together.",
-    "A second paragraph shows how longer posts look."
+    "[placeholder] A second paragraph shows how longer posts look."
    ]
   },
   {

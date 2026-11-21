@@ -6,10 +6,11 @@ rounded to 2 decimals. lo = 1:110m (world maps), hi = 1:50m (zoomed-in trip and 
 Natural Earth is public domain; world-atlas (Mike Bostock) is ISC: licence copied next to the output.
 """
 import json
+import os
 import shutil
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(os.environ.get("TRAVELS_ROOT", Path(__file__).resolve().parent.parent))
 SRC = ROOT / "imports" / "world-atlas-2.0.2"
 OUT = ROOT / "site" / "js"
 

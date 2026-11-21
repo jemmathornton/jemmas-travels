@@ -2,6 +2,8 @@
 // worldMap(pins, opts) returns SVG markup. Visited countries are filled and link to their page.
 // opts: focus [west, south, east, north] (degrees) to zoom in; visited: [ISO numeric ids]; links: {isoNumeric: href};
 // labels: show pin names; aria: description.
+// Uses esc() from app.js when there; its own otherwise.
+const escMap = s => (typeof esc === "function" ? esc(s) : String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])));
 const RAD = Math.PI / 180;
 function neProject(lon, lat) {
   const l = lon * RAD, p = lat * RAD, p2 = p * p, p4 = p2 * p2;
@@ -45,25 +47,36 @@ function worldMap(pins = [], opts = {}) {
     let d = ""; for (let lon = w0 - 5; lon <= e0 + 5; lon += 2) { const [x, y] = P(lon, lat); d += (d ? "L" : "M") + f(x) + " " + f(y); }
     lines += d;
   }
+  // a map that reaches past 180° (Fiji, eastern Russia, a Pacific trip) also draws the world again one turn round
+  const turns = [0]; if (e0 > 180) turns.push(360); if (w0 < -180) turns.push(-360);
   for (const id in WORLD[set]) {
     const b = countryBox(set, id);
-    if (b[2] < w0 - pad || b[0] > e0 + pad || b[3] < s0 - pad || b[1] > n0 + pad) continue;
+    if (!turns.some(o => !(b[2] + o < w0 - pad || b[0] + o > e0 + pad)) || b[3] < s0 - pad || b[1] > n0 + pad) continue;
     const [name, rings] = WORLD[set][id];
     let d = "";
-    for (const r of rings) {
-      for (let i = 0; i < r.length; i += 2) { const [x, y] = P(r[i], r[i + 1]); d += (i ? "L" : "M") + f(x) + " " + f(y); }
+    for (const o of turns) for (const r of rings) {
+      // skip pieces nowhere near the picture (keeps the map small, and stops far-off islands stretching it)
+      if (zoom) {
+        let rw = 999, re = -999, rs = 99, rn = -99;
+        for (let i = 0; i < r.length; i += 2) { rw = Math.min(rw, r[i]); re = Math.max(re, r[i]); rs = Math.min(rs, r[i + 1]); rn = Math.max(rn, r[i + 1]); }
+        if (re + o < w0 - pad || rw + o > e0 + pad || rn < s0 - pad || rs > n0 + pad) continue;
+      }
+      for (let i = 0; i < r.length; i += 2) { const [x, y] = P(r[i] + o, r[i + 1]); d += (i ? "L" : "M") + f(x) + " " + f(y); }
       d += "Z";
     }
+    if (!d) continue;
     const v = visited.has(id);
-    const path = `<path class="c${v ? " v" : ""}" d="${d}"><title>${esc(name)}</title></path>`;
-    land += v && links[id] ? `<a href="${links[id]}" aria-label="${esc(name)}">${path}</a>` : path;
+    const path = `<path class="c${v ? " v" : ""}" d="${d}"><title>${escMap(name)}</title></path>`;
+    land += v && links[id] ? `<a href="${links[id]}" aria-label="${escMap(name)}">${path}</a>` : path;
   }
   let pinsSvg = "";
   for (const p of pins) {
     const [x, y] = P(p.lon, p.lat).map(f);
-    const label = opts.labels ? `<text x="${x}" y="${(y - 13).toFixed(1)}" text-anchor="middle">${esc(p.label)}</text>` : "";
-    const body = `<g class="pin"><circle class="pin-halo" cx="${x}" cy="${y}" r="9"/><circle class="pin-dot" cx="${x}" cy="${y}" r="4.5"/>${label}<title>${esc(p.title || p.label)}</title></g>`;
-    pinsSvg += p.href ? `<a href="${p.href}" aria-label="${esc(p.title || p.label)}">${body}</a>` : body;
+    const label = opts.labels ? `<text x="${x}" y="${(y - 13).toFixed(1)}" text-anchor="middle">${escMap(p.label)}</text>` : "";
+    const body = `<g class="pin"><circle class="pin-halo" cx="${x}" cy="${y}" r="9"/><circle class="pin-dot" cx="${x}" cy="${y}" r="4.5"/>${label}<title>${escMap(p.title || p.label)}</title></g>`;
+    pinsSvg += p.href ? `<a href="${p.href}" aria-label="${escMap(p.title || p.label)}">${body}</a>` : body;
   }
-  return `<svg class="worldmap${zoom ? " zoom" : ""}" viewBox="0 0 ${W} ${H}"${opts.slice ? ' preserveAspectRatio="xMidYMid slice"' : ""} role="img" aria-label="${esc(opts.aria || "World map")}"><defs><filter id="rough" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="${zoom ? 4 : 2.2}"/></filter></defs><rect class="sea" width="${W}" height="${H}"/><path class="grat" d="${lines}"/><g class="land">${land}</g>${pinsSvg}</svg>`;
+  const fid = "rough" + (++worldMap.n || (worldMap.n = 1));   // each map its own filter (two maps on a page mustn't share an id)
+  const interactive = /<a /.test(land + pinsSvg);
+  return `<svg class="worldmap${zoom ? " zoom" : ""}" viewBox="0 0 ${W} ${H}"${opts.slice ? ' preserveAspectRatio="xMidYMid slice"' : ""} role="${interactive ? "group" : "img"}" aria-label="${escMap(opts.aria || "World map")}"><defs><filter id="${fid}" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="${zoom ? 4 : 2.2}"/></filter></defs><rect class="sea" width="${W}" height="${H}"/><path class="grat" d="${lines}"/><g class="land" filter="url(#${fid})">${land}</g>${pinsSvg}</svg>`;
 }
