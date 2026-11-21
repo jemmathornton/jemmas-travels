@@ -322,13 +322,17 @@ function render() {
   $("#view").innerHTML = html;
   $("#nav").innerHTML = nav(route);
   document.body.dataset.page = r || "home";
-  document.body.classList.remove("menu-open");
+  setMenu(false);
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
 $("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Fonts: Instrument Serif and Manrope · Icons by Lucide</span>`;
 $("#menuBtn").innerHTML = icon("menu");
-$("#menuBtn").onclick = () => { const o = document.body.classList.toggle("menu-open"); $("#menuBtn").setAttribute("aria-expanded", o); };
+// phone menu: slides in from the left over the page (her ask, 21 Nov: it used to push the page down)
+function setMenu(o) { document.body.classList.toggle("menu-open", o); $("#menuBtn").setAttribute("aria-expanded", o); $("#menuBtn").innerHTML = icon(o ? "x" : "menu"); }
+$("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-open"));
+const scrim = document.createElement("div"); scrim.className = "scrim"; scrim.onclick = () => setMenu(false); $("#side").appendChild(scrim);
+addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });
 addEventListener("hashchange", render);
 
 // ---------- trial switch (only while she is choosing; round 3: Old Atlas variations) ----------

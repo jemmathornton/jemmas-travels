@@ -28,7 +28,9 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - 21 Nov: **GitHub backup: yes**, to the repo she made (jemmas-travels, public).
 - 21 Nov (round 3): **F Old Atlas is closest.** Not sold on the dotted paper background; the map was cropped (fixed: tip of South America, New Zealand); the home page needs a header, not just a big map; worried it’s too far from her other apps (no sidebar). The switch now offers Old Atlas variations only: Layout (sidebar pale / sidebar sea green / top bar), Home header (banner / title label / title over map), Background (plain / grain / grid / sea-chart lines / dots). Sheets: `for-jemma/round-3-*.jpg`.
 - 21 Nov (round 4): **her picks: banner home header, a sidebar, plain paper.** The banner was reworked (title in its own column, never on the map; under ~1240px wide the map goes on top and the title underneath). Still open: **pale or sea green sidebar** (she meant the faint grid *in the pale sidebar*, now an option; the page stays plain). The switch has one row: Pale with faint grid / Pale, plain / Sea green.
-- 21 Nov: banner map was cropped in her browser (slice into a box narrower than the map): now drawn whole inside a fixed-width column. **Country stamps: the postcard stamps** (white, dotted blue edge, tilted), not the red postmark circles (she disliked them).
+- 21 Nov: banner map was cropped in her browser (slice into a box narrower than the map): now drawn whole inside a fixed-width column. **Banner (her idea, 21 Nov): map a little right of centre, title floating over the open Pacific on no background** (soft sea-coloured glow only); under ~1240px the map goes on top, title under.
+- 21 Nov: **phone menu slides in from the left over the page** (it used to push the page down); tap outside, × or Esc to close.
+- **Country stamps: the postcard stamps** (white, dotted blue edge, tilted), not the red postmark circles (she disliked them).
 
 ## Where things are
 
