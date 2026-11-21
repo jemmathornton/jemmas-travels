@@ -302,7 +302,7 @@ function pageStats() {
   const fact = (k, v, s) => `<div class="fact"><span class="fk">${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`;
   return head("Stats", "For fun") + `<div class="facts">
       ${fact("Countries", VISITED.length, `of ${TOTAL_COUNTRIES}`)}
-      ${fact("Continents", continents.size, `of ${Object.keys(D.continentTotals).length} lived on`)}
+      ${fact("Continents", continents.size, "of 7")}
       ${fact("Trips", TRIPS.length, `${YEARS.length} different years`)}
       ${maxM ? fact("Favourite month", MONTHS[topMonth], `${maxM} of ${TRIPS.length} trips`) : ""}
       ${most.length ? fact("Most visited", most.map(x => esc(country(x[0]).name)).join(", "), `${plural(most[0][1], "trip")}${most.length > 1 ? " each" : ""}`) : ""}

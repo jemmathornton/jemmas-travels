@@ -10,7 +10,6 @@ XSS through the address (#/year/…), unknown years now Not found; an unmarked s
 
 ## Still open from the review (need her say, or later)
 - **← Jemma’s Journals link** points at `/` (decided for when all sites share one address). On her PC it just reloads Travels; fine until going online.
-- **Continents** now say “of 6 lived on” (matches the tracker; Antarctica not counted). Her call if she’d rather “of 7”.
 - **Trips across New Year** count in the year they started (said under the chart). Her call if they should show in both years.
 - **Alt text** for real photos: comes from the caption when there is one; a separate alt field could be added.
 - Going online: split world.js so the detailed shapes load only on zoomed maps (1.2 MB now).

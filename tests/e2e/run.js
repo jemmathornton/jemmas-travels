@@ -357,7 +357,7 @@ if (SUITE === 'fixture') {
     const page = await open({ hash: '#/stats' });
     const f = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.fact')].map(x => [x.querySelector('.fk').textContent.trim().toLowerCase(), x.querySelector('b').textContent.trim() + ' | ' + (x.querySelector('small')?.textContent.trim() || '')])));
     eq(f['countries'].split(' | ')[0], String(EXPECT.visited), 'countries');
-    eq(f['continents'].split(' | ')[0], String(EXPECT.continents), 'continents');
+    eq(f['continents'], `${EXPECT.continents} | of 7`, 'continents (her pick, 21 Nov: out of 7)');
     eq(f['trips'].split(' | ')[0], String(EXPECT.trips), 'trips');
     eq(f['busiest year'].split(' | ')[0], EXPECT.busiest, 'busiest year');
     eq(f['longest gap'], `${EXPECT.longest_gap[0]} years | ${EXPECT.longest_gap[1]} to ${EXPECT.longest_gap[2]}`, 'longest gap');

@@ -30,6 +30,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - 21 Nov (round 4): **her picks: banner home header, a sidebar, plain paper.** The banner was reworked (title in its own column, never on the map; under ~1240px wide the map goes on top and the title underneath). Still open: **pale or sea green sidebar** (she meant the faint grid *in the pale sidebar*, now an option; the page stays plain). The switch has one row: Pale with faint grid / Pale, plain / Sea green.
 - 21 Nov: banner map was cropped in her browser (slice into a box narrower than the map): now drawn whole inside a fixed-width column. **Banner (her idea, 21 Nov): map a little right of centre, title floating over the open Pacific on no background** (soft sea-coloured glow only); under ~1240px the map goes on top, title under.
 - 21 Nov: **phone menu slides in from the left over the page** (it used to push the page down); tap outside, × or Esc to close. **Menu button on the left**, the side it slides from (her ask).
+- 21 Nov: **Continents on the stats page: “4 of 7”** (her pick; not “of 6 lived on”).
 - 21 Nov: **look decided: Old Atlas, pale sidebar with a faint grid (made fainter, her ask), banner header, plain paper.** The trial switch is gone; the choice is fixed in `index.html` (data attributes) and `app.js`. Journals’ My Travels picture redone from the atlas Map page.
 - **Country stamps: the postcard stamps** (white, dotted blue edge, tilted), not the red postmark circles (she disliked them).
 
