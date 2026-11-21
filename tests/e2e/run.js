@@ -3,7 +3,7 @@
 // Prints one JSON line per test: {"name", "ok", "error"}. Run through tests/e2e/test_site.py (python run_tests.py e2e).
 // Pages are drawn by changing the address (#/...) in one loaded page per width, as she would click about.
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 
 const [SITE, SUITE, EXPECT_FILE, FILTER] = process.argv.slice(2);
 const EXPECT = EXPECT_FILE && fs.existsSync(EXPECT_FILE) ? JSON.parse(fs.readFileSync(EXPECT_FILE, 'utf8')) : {};
@@ -335,7 +335,7 @@ if (SUITE === 'her') {
     await page.close2();
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const f = await ctx.newPage();
     await f.goto('file:///' + path.resolve(SITE, 'index.html').split(path.sep).join('/') + '#/');
-    eq(await f.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '../../JemmasJournals/concepts/index.html', 'as a file:');
+    eq(await f.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '../../site/index.html', 'as a file:');
     await ctx.close();
   });
 

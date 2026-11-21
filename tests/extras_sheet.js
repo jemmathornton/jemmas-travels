@@ -1,7 +1,7 @@
 // Screenshots of the trial extras, dark mode and the Write page, for her to look at (21 Nov).
 // node tests/extras_sheet.js <outdir>
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'site'), OUT = path.resolve(process.argv[2]);
 const T = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 const SHOTS = [

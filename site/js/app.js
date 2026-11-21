@@ -620,7 +620,7 @@ if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange"
 
 // "← Jemma’s Journals" goes to "/" (all her sites at one address once online); opened as a file on her PC, to the Journals page
 // beside this project instead of a listing of the C drive (as Sim World does)
-const HOME_LOCAL = "../../JemmasJournals/concepts/index.html";
+const HOME_LOCAL = "../../site/index.html";   // since 21 Nov this site sits inside Jemma’s Journals: travels/site → site
 if (location.protocol === "file:") $(".home-link").setAttribute("href", HOME_LOCAL);
 
 // her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper: set on <html> in index.html

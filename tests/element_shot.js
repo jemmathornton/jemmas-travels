@@ -1,6 +1,6 @@
 // Screenshot one element of a page: node tests/element_shot.js <out.png> <hash e.g. #/map> <look> <css selector> [width]
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'site');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const [out, hash = '#/', look = 'f', sel = 'body', width = '1600'] = process.argv.slice(2);

@@ -1,8 +1,8 @@
 // Screenshots for the family rules (21 Nov): home, a trip, the map and the drawer open, at 1600 and 390 wide, light and dark.
-// Run:  C:/Users/Jemma/Documents/SimTracker/.tools/node/node.exe tests/family_shots.js [outdir]
+// Run:  C:/Users/Jemma/Documents/JemmasJournals/.tools/node/node.exe tests/family_shots.js [outdir]
 // Serves site/ itself; changes nothing but the screenshot folder. Fails on page errors or sideways scrolling.
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..', 'site');
 const HOST = 'http://localhost:8099/';

@@ -1,6 +1,8 @@
 # Jemma’s Travels
 
-A blog of Jemma’s trips: each trip has posts (one day or several days together) with her notes and photos, comments, a map, a countries-visited tracker and fun stats. Found by year by default, or by country / on the map. Started 21 Nov 2026, in the family of her other apps (Library `Documents\HomeLibrary`, Pokédex `Documents\Pokedex`, Sim World `Documents\SimTracker`, home page `Documents\JemmasJournals`). Static site on her PC, built to go online later. Open things are in `TODO.md`.
+**Where this lives (since 21 Nov 2026, her layout):** `Documents\JemmasJournals\travels`, a submodule of Jemma’s Journals (the parent; its own repo is unchanged on GitHub). The old folder `Documents\Travels` is kept for now but no longer used: work here. Node and Playwright for tests are shared in the parent (`JemmasJournals\.tools`, `JemmasJournals\node_modules`). The whole family on one address: `python tools/serve_all.py` in the parent, http://localhost:8050/travels/. After committing here, record the new version in the parent too.
+
+A blog of Jemma’s trips: each trip has posts (one day or several days together) with her notes and photos, comments, a map, a countries-visited tracker and fun stats. Found by year by default, or by country / on the map. Started 21 Nov 2026, in the family of her other apps (Library `Documents\JemmasJournals\library`, Pokédex `Documents\JemmasJournals\pokedex`, Sim World `Documents\JemmasJournals\sim-world`, home page `Documents\JemmasJournals`). Static site on her PC, built to go online later. Open things are in `TODO.md`.
 
 ## Working rules (as for her other apps)
 
@@ -59,7 +61,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 ## How to work here
 
 - Python 3.13: `C:/Users/Jemma/AppData/Local/Programs/Python/Python313/python.exe -X utf8` (plain `python` is the Store stub and hangs). Ask before installing anything.
-- Node + Playwright: borrowed from Sim World, `C:/Users/Jemma/Documents/SimTracker/.tools/node/node.exe` (uses Edge, no download).
+- Node + Playwright: borrowed from Sim World, `C:/Users/Jemma/Documents/JemmasJournals/.tools/node/node.exe` (uses Edge, no download).
 - Preview: `travels` in `.claude/launch.json` (port 8041).
 - **Tests (21 Nov): `python -X utf8 tests/run_tests.py`** (91 tests, about 11 minutes; `unit` or `e2e` for one half, `-k word` to pick). `tests/unit/`: data check, build, map shapes, the saving server (photos lose GPS, turned upright, problems keep nothing). The `WritePage` page tests fill in the real Write page against `serve.py` running on a throwaway copy. `tests/e2e/run.js` (driven by `test_site.py`): her site in headless Edge at four widths (every page and link, figures, banner vs map, maps whole, phone menu, Write page only locally, photo markers, apostrophes, headings, focus, contrast) and a made-up set of trips with known answers (`tests/fixture_trips.py`: no-month trip, across New Year, Fiji over 180°, home visit, odd characters, real photos). Every test works on a throwaway copy (`tests/support.py`, TRAVELS_ROOT). Run them after every change and before every commit; add a test for each bug fixed.
 - Screenshots to look at: `node tests/shoot.js` (every page, laptop and phone, into `for-jemma/looks/`), `node tests/templates.js` (the Italy template posts).

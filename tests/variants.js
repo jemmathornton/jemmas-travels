@@ -1,7 +1,7 @@
 // Screenshots of Old Atlas variations for her choice sheets.
 // node tests/variants.js <outdir>   (writes v-<name>.jpg for each entry below)
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'site');
 const OUT = path.resolve(process.argv[2]);
 const T = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2' };

@@ -1,7 +1,7 @@
 // Pin colour options for her to compare (21 Nov: "red pins look weird"): the real pages with --pin swapped.
 // node tests/pin_colours.js <outdir>
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'site'), OUT = path.resolve(process.argv[2]);
 const T = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const OPTIONS = {

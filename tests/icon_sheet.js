@@ -2,7 +2,7 @@
 // Picture of the tab icon options (site/icon-options/*.svg) in a pretend browser tab, light and dark, at real sizes.
 // node tests/icon_sheet.js <out.png>
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 const DIR = path.join(__dirname, '..', 'site', 'icon-options');
 const NAMES = { 'a-globe.svg': 'A · Globe', 'b-j-globe.svg': 'B · J on a globe', 'c-stamp.svg': 'C · Stamp', 'd-pin.svg': 'D · Map pin' };
 (async () => {

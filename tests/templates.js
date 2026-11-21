@@ -1,7 +1,7 @@
 // Screenshots of the template posts (Italy 2026) at laptop and phone size, full page.
 // node tests/templates.js <outdir>
 const path = require('path'), fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', 'site'), OUT = path.resolve(process.argv[2] || path.join(__dirname, '..', 'for-jemma', 'templates'));
 const T = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2' };
 const POSTS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10'];

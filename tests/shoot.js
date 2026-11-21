@@ -1,10 +1,10 @@
 // Screenshots of each look and page, for her to choose from, plus a check that no page throws.
-// Run:  C:/Users/Jemma/Documents/SimTracker/.tools/node/node.exe tests/shoot.js [outdir] [looks] [pages]
+// Run:  C:/Users/Jemma/Documents/JemmasJournals/.tools/node/node.exe tests/shoot.js [outdir] [looks] [pages]
 // Uses the Playwright her Sim World project already has (Microsoft Edge). Serves site/ itself on localhost-like
 // host travels.localhost, so the Write page shows. Changes nothing but the screenshot folder.
 const path = require('path');
 const fs = require('fs');
-const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/playwright');
+const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..', 'site');
 const HOST = 'http://localhost:8099/';

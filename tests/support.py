@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REAL = os.path.dirname(HERE)
 TOOLS = os.path.join(REAL, "tools")
 PYTHON = sys.executable
-NODE = r"C:\Users\Jemma\Documents\SimTracker\.tools\node\node.exe"
+NODE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".tools", "node", "node.exe")   # shared in Jemma's Journals, the parent folder (21 Nov)
 
 
 def _link_or_copy(src, dst):
