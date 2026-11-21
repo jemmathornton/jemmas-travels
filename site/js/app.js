@@ -97,6 +97,13 @@ function focusOn(codes, pins = []) {
   else if (tall < wide / 2.4) { const c = (s + n) / 2, h = wide / 2.4 / 2; s = c - h; n = c + h; }
   return [Math.max(-360, w), Math.max(-85, s), Math.min(360, e), Math.min(85, n)];   // may go past 180°: the map draws across it
 }
+// ---------- trial extras (21 Nov, her ask: "mock up and I'll see"): routes, distance, timeline, search ----------
+const HOME_AT = () => D.homeAt || country(D.home).at;
+function tripStops(t) { // where a trip went, in order: the places she named, or else each country's own point
+  return t.places && t.places.length ? t.places.map(([, lat, lon]) => [lat, lon]) : t.countries.map(c => country(c).at);
+}
+function tripRoute(t) { return [HOME_AT(), ...tripStops(t), HOME_AT()]; }   // from home and back
+function tripKm(t) { const r = tripRoute(t); let n = 0; for (let i = 0; i < r.length - 1; i++) n += km(r[i], r[i + 1]); return n; }
 function km(a, b) {
   const R = 6371, r = x => x * Math.PI / 180;
   const dLat = r(b[0] - a[0]), dLon = r(b[1] - a[1]);
@@ -200,7 +207,7 @@ function pageTrip(id) {
       <div class="trip-head-text"><div class="kicker">${icon("calendar")}${esc(fmtRange(t))}</div><h1>${esc(t.title)}</h1>
         <div class="chips">${chips(t.countries)}</div>
         <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div></div>
-      <div class="trip-map">${worldMap(placePins([t]), { ...mapOpts(t.countries), focus: focusOn(t.countries, placePins([t])), labels: true, aria: `Map of ${t.title}` })}</div>
+      <div class="trip-map">${worldMap(placePins([t]), { ...mapOpts(t.countries), focus: focusOn(t.countries, placePins([t])), labels: true, routes: (t.places || []).length > 1 ? [tripStops(t)] : [], aria: `Map of ${t.title}` })}</div>
     </header>
     ${posts.length ? `<h2 class="sr-only">Posts</h2><div class="post-list">${posts.map(p => postCard(p)).join("")}</div>`
       : `<div class="empty-note">${icon("pen")}<p>No posts for this trip yet.</p></div>`}`;
@@ -246,12 +253,15 @@ function pagePost(id, slug) {
         ${next ? `<a class="next" href="#/trip/${id}/${next.slug}"><span><small>${esc(dayLabel(next))}</small>${ph(next.title)}</span>${icon("chevron-right")}</a>` : "<span></span>"}</nav>
     </article>${comments()}`;
 }
-function pageMap() {
+function pageMap(view) {
   const byCont = {};
   for (const c of VISITED) (byCont[country(c).continent] ||= []).push(c);
-  return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`) +
-    `<div class="big-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), aria: "Every country visited" })}</div>
-    <p class="note map-note">${icon("info")}Countries visited are coloured in; pins are places named on a trip. Map: Natural Earth.</p>
+  const routes = view === "routes";
+  const tabs = `<div class="filters"><a class="fchip ${routes ? "" : "on"}" href="#/map">Countries</a><a class="fchip ${routes ? "on" : ""}" href="#/map/routes">Routes from home <span class="trial-tag">trial</span></a></div>`;
+  const home = HOME_AT(), homePin = { lat: home[0], lon: home[1], label: D.homeTown || "Home", title: `Home: ${D.homeTown || country(D.home).name}` };
+  return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`, tabs) +
+    `<div class="big-map">${worldMap(routes ? [homePin, ...placePins(TRIPS)] : placePins(TRIPS), { ...mapOpts(VISITED), routes: routes ? TRIPS.map(tripRoute) : [], aria: routes ? "Every trip’s route from home" : "Every country visited" })}</div>
+    <p class="note map-note">${icon("info")}${routes ? `Each trip drawn from ${esc(D.homeTown || "home")} to the places named on it (or the middle of each country) and back, the shortest way round the world.` : "Countries visited are coloured in; pins are places named on a trip."} Map: Natural Earth.</p>
     <h2 class="sr-only">By continent</h2><div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
       const ts = TRIPS.filter(t => t.countries.includes(c));
       return `<li><a href="#/country/${c}">${esc(country(c).name)}</a><span>${ts.map(t => year(t)).join(", ")}</span></li>`;
@@ -311,6 +321,7 @@ function pageStats() {
       ${fact("First on record", esc(first.title), esc(fmtRange(first)))}
       ${fact("Longest gap", plural(gap[0], "year"), `${gap[1]} to ${gap[2]}`)}
       ${fact("Written so far", plural(posts, "post"), `${plural(days, "day")} · ${plural(photos, "photo")}`)}
+      ${(() => { const total = TRIPS.reduce((n, t) => n + tripKm(t), 0); return fact(`Distance travelled <span class="trial-tag">trial</span>`, `${(Math.round(total / 1000) * 1000).toLocaleString("en-GB")} km`, `about ${(total / 40075).toFixed(1)} times round the world, as the crow flies from ${esc(D.homeTown || "home")}`); })()}
     </div>
     <section class="sec chart-sec"><h2 class="sec-h">Trips each year</h2>
       <div class="bars" role="img" aria-label="Trips each year">${perYear.map(([y, n]) => `<div class="bar" title="${y}: ${plural(n, "trip")}"><span class="bv">${n || ""}</span><i style="height:${n / maxY * 100}%"></i><span class="bl">${String(y).slice(2)}</span></div>`).join("")}</div>
@@ -321,23 +332,103 @@ function pageStats() {
 }
 function pageWrite() {
   if (!LOCAL) return notFound();
-  return head("Write a post", "Only on your PC") + `<p class="note banner-note">${icon("info")}Mock-up for choosing (not saving yet). This page only exists on your own computer, so no sign-in is needed: online, there is no way to write.</p>
-    <form class="write" onsubmit="event.preventDefault()">
-      <label>Trip<select>${TRIPS.map(t => `<option>${esc(t.title)} · ${esc(fmtRange(t))}</option>`).join("")}<option>+ New trip…</option></select></label>
-      <div class="two"><label>Day or days<input placeholder="e.g. 3, or 2-4"></label><label>Where<input placeholder="e.g. Kyoto"></label></div>
-      <label>Title<input placeholder="Title for this post"></label>
-      <label>Notes<textarea rows="9" placeholder="Write as much or as little as you like. A blank line starts a new paragraph."></textarea></label>
-      <div class="drop">${icon("upload")}<b>Drop photos here</b><span>or click to choose · they’re resized and copied into the site</span></div>
-      <div class="actions"><button class="primary" disabled>${icon("pen")}Save post</button><span class="note">Saved posts go online the next time the site is published.</span></div>
+  const tripOpts = TRIPS.map(t => `<option value="${esc(t.id)}">${esc(t.title)} · ${esc(fmtRange(t))}</option>`).join("");
+  const countryOpts = Object.entries(D.countries).filter(([c]) => c !== D.home).sort((a, b) => a[1].name.localeCompare(b[1].name))
+    .map(([c, k]) => `<label class="tick"><input type="checkbox" name="nc" value="${c}"> ${esc(k.name)}</label>`).join("");
+  return head("Write a post", "Only on your PC") + `<p class="note banner-note" id="wServer">${icon("info")}This page only exists on your own computer, so no sign-in is needed: online, there is no way to write.</p>
+    <form class="write" id="writeForm" novalidate>
+      <label>Trip<select name="trip">${tripOpts}<option value="">+ New trip…</option></select></label>
+      <fieldset class="newtrip" hidden><legend>New trip</legend>
+        <label>Title<input name="ntitle" placeholder="e.g. Lake District"></label>
+        <div class="two"><label>From (month)<input name="nfrom" type="month"></label><label>To (month)<input name="nto" type="month"></label></div>
+        <div class="ticks" aria-label="Countries">${countryOpts}</div>
+        <p class="note">A country that isn’t listed needs adding to the site first (ask Claude).</p>
+      </fieldset>
+      <div class="two"><label>Day or days<input name="days" placeholder="e.g. 3, or 2-4"></label><label>Or dates<input name="dates" placeholder="e.g. 2026-09-05 to 2026-09-07"></label></div>
+      <label>Where<input name="place" placeholder="e.g. Kyoto"></label>
+      <label>Title<input name="title" placeholder="Title for this post" required></label>
+      <label>Notes<textarea name="text" rows="11" placeholder="Write as much or as little as you like. A blank line starts a new paragraph."></textarea></label>
+      <p class="note">To put a photo in the middle of your words, write its marker on a line of its own, e.g. <code>[photo 2 right]</code>, <code>[photos 3-5]</code>, <code>[photos 1-6 mosaic]</code> (all of them: for-jemma/post-templates.md). Photos you don’t place go at the end.</p>
+      <label class="drop" id="drop">${icon("upload")}<b>Drop photos here</b><span>or click to choose · copied and resized for the site; where they were taken is removed</span><input type="file" accept="image/*" multiple hidden id="files"></label>
+      <ol class="picked" id="picked"></ol>
+      <div class="actions"><button class="primary" id="saveBtn" type="submit">${icon("pen")}Save post</button><span class="note" id="wMsg">Saved posts go online the next time the site is published.</span></div>
     </form>`;
+}
+// the Write page's behaviour: photos chosen (numbered, so markers can point at them), new trip fields, saving
+let picked = [];
+function wireWrite() {
+  const f = $("#writeForm"); if (!f) return;
+  picked = [];
+  const server = fetch("api/ping").then(r => r.ok ? r.json() : {}).then(j => j.ok === true).catch(() => false);
+  server.then(ok => { if (!ok) { $("#wServer").innerHTML = `${icon("info")}To save, open the site from its own server: in Claude, start the “travels” preview (or run <code>python tools/serve.py</code>).`; $("#saveBtn").disabled = true; } });
+  f.trip.onchange = () => { f.querySelector(".newtrip").hidden = f.trip.value !== ""; };
+  const show = () => {
+    $("#picked").innerHTML = picked.map((p, i) => `<li><img src="${p.url}" alt=""><span>${i + 1}</span><button type="button" data-i="${i}" aria-label="Remove photo ${i + 1}">${icon("x")}</button></li>`).join("");
+  };
+  const add = files => { for (const file of files) if (/^image\//.test(file.type)) picked.push({ file, url: URL.createObjectURL(file) }); show(); };
+  $("#files").onchange = e => add(e.target.files);
+  const drop = $("#drop");
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); add(e.dataTransfer.files); };
+  $("#picked").onclick = e => { const b = e.target.closest("button"); if (b) { picked.splice(+b.dataset.i, 1); show(); } };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const msg = $("#wMsg"), btn = $("#saveBtn");
+    const v = n => (f.elements[n]?.value || "").trim();
+    const body = { trip: f.trip.value, title: v("title"), days: v("days"), dates: v("dates"), place: v("place"), text: f.text.value };
+    if (!body.trip) body.newTrip = { title: v("ntitle"), from: v("nfrom"), to: v("nto") || v("nfrom"), countries: [...f.querySelectorAll("input[name=nc]:checked")].map(x => x.value) };
+    if (!body.title) { msg.textContent = "The post needs a title."; f.title.focus(); return; }
+    btn.disabled = true; msg.textContent = picked.length ? `Getting ${plural(picked.length, "photo")} ready…` : "Saving…";
+    try {
+      body.photos = await Promise.all(picked.map(p => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok({ name: p.file.name, data: r.result }); r.onerror = no; r.readAsDataURL(p.file); })));
+      msg.textContent = "Saving…";
+      const res = await fetch("api/post", { method: "POST", headers: { "Content-Type": "application/json", "X-Travels": "1" }, body: JSON.stringify(body) });
+      const out = await res.json();
+      if (!out.ok) { msg.textContent = "Not saved: " + (out.problems || []).join(" "); btn.disabled = false; return; }
+      location.hash = out.url; location.reload();   // the site was rebuilt with the new post: load it fresh
+    } catch (err) { msg.textContent = "Not saved: " + err; btn.disabled = false; }
+  };
 }
 function notFound() { return head("Not found", "") + `<p><a href="#/">Back to the start</a></p>`; }
 
 // ---------- shell ----------
+function pageTimeline() {
+  // each year with trips, and one line for each run of years without any ("2013 – 2022: no trips")
+  const rows = []; let gap = null;
+  for (let y = +YEARS[0]; y >= +YEARS[YEARS.length - 1]; y--) {
+    if (YEARS.includes(String(y))) { if (gap) rows.push(gap); gap = null; rows.push(String(y)); }
+    else gap = gap ? [gap[0], y] : [y, y];
+  }
+  return head("Timeline", `Every trip, newest first <span class="trial-tag">trial</span>`) + `<ol class="timeline">${rows.map(y => {
+    if (Array.isArray(y)) return `<li class="tl-gap"><span class="tl-year">${y[1] === y[0] ? y[0] : `${y[1]} – ${y[0]}`}: no trips</span></li>`;
+    const ts = TRIPS.filter(t => year(t) === y);
+    return `<li class="tl-year-row"><h2 class="tl-year"><a href="#/year/${y}">${y}</a></h2><ol>${ts.map(t => `<li class="tl-trip">
+      <a class="tl-cover" href="#/trip/${t.id}" tabindex="-1" aria-hidden="true">${cover(t)}</a>
+      <div><div class="when">${icon("calendar")}${esc(fmtRange(t))}</div><h3><a href="#/trip/${t.id}">${esc(t.title)}</a></h3>
+      <div class="chips">${chips(t.countries)}</div><div class="meta">about ${(Math.round(tripKm(t) / 100) * 100).toLocaleString("en-GB")} km there and back · ${plural(postsOf(t.id).length, "post")}</div></div></li>`).join("")}</ol></li>`;
+  }).join("")}</ol>`;
+}
+function pageSearch(q) {
+  q = String(q || "").trim();
+  const box = `<form class="search-big" role="search" onsubmit="event.preventDefault(); location.hash = '#/search/' + encodeURIComponent(this.q.value.trim())"><input name="q" type="search" value="${esc(q)}" placeholder="A place, a country, a word from a post…" aria-label="Search"><button class="primary" type="submit">${icon("search")}Search</button></form>`;
+  if (!q) return head("Search", `Trips, posts and countries <span class="trial-tag">trial</span>`) + box;
+  const norm = x => String(x || "").replace(/^\[placeholder\]/, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const words = norm(q).split(/\s+/).filter(Boolean), hit = text => words.every(w => norm(text).includes(w));
+  const trips = TRIPS.filter(t => hit([t.title, fmtRange(t), ...t.countries.map(c => country(c).name), ...(t.places || []).map(p => p[0])].join(" ")));
+  const posts = D.posts.filter(p => !p.placeholder && hit([p.title, p.place, ...p.text.filter(x => !isPhotoMark(x))].join(" ")));
+  const cs = VISITED.filter(c => hit(country(c).name));
+  const n = trips.length + posts.length + cs.length;
+  return head("Search", `${plural(n, "result")} for “${esc(q)}” <span class="trial-tag">trial</span>`) + box +
+    (cs.length ? `<section class="sec"><h2 class="sec-h">Countries</h2><div class="country-grid">${cs.map(c => `<a class="ctile" href="#/country/${c}"><span class="code">${c}</span><b>${esc(country(c).name)}</b></a>`).join("")}</div></section>` : "") +
+    (trips.length ? `<section class="sec"><h2 class="sec-h">Trips</h2><div class="trip-grid">${trips.map(tripCard).join("")}</div></section>` : "") +
+    (posts.length ? `<section class="sec"><h2 class="sec-h">Posts</h2><div class="post-list">${posts.map(p => postCard(p, { trip: true })).join("")}</div></section>` : "") +
+    (n ? "" : `<p class="note">Nothing found. Placeholder posts aren’t searched.</p>`);
+}
 function nav(route) {
   const item = (href, ic, label, on, n) => `<a href="${href}" class="${on ? "on" : ""}">${icon(ic)}<span>${label}</span>${n != null ? `<small>${n}</small>` : ""}</a>`;
   const r = route[0] || "";
-  return `<div class="nav-main">${item("#/", "home", "Home", r === "")}${item("#/trips", "plane", "Trips", r === "trips" || r === "trip" || r === "year", TRIPS.length)}${item("#/map", "map", "Map", r === "map")}${item("#/countries", "globe", "Countries", r === "countries" || r === "country", VISITED.length)}${item("#/stats", "chart", "Stats", r === "stats")}${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>
+  return `<div class="nav-main">${item("#/", "home", "Home", r === "")}${item("#/trips", "plane", "Trips", r === "trips" || r === "trip" || r === "year", TRIPS.length)}${item("#/map", "map", "Map", r === "map")}${item("#/countries", "globe", "Countries", r === "countries" || r === "country", VISITED.length)}${item("#/stats", "chart", "Stats", r === "stats")}${item("#/timeline", "clock", "Timeline", r === "timeline")}${item("#/search", "search", "Search", r === "search")}${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>
     <div class="nav-years"><div class="nav-h">Years</div>${YEARS.map(y => item(`#/year/${y}`, "calendar", y, r === "year" && route[1] === y, TRIPS.filter(t => year(t) === y).length)).join("")}</div>`;
 }
 function render() {
@@ -348,7 +439,9 @@ function render() {
   else if (r === "trips") html = pageTrips();
   else if (r === "year") html = pageTrips(a);
   else if (r === "trip") html = b ? pagePost(a, b) : pageTrip(a);
-  else if (r === "map") html = pageMap();
+  else if (r === "map") html = a && a !== "routes" ? notFound() : pageMap(a);
+  else if (r === "timeline") html = pageTimeline();
+  else if (r === "search") html = pageSearch(a);
   else if (r === "countries") html = pageCountries();
   else if (r === "country") html = pageCountry(a);
   else if (r === "stats") html = pageStats();
@@ -360,10 +453,20 @@ function render() {
   setMenu(false);
   if (render.done) $("#view").focus({ preventScroll: true });   // after a click, keyboard and screen readers start at the new page
   render.done = true;
+  if (r === "write") wireWrite();
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
-$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Map: Natural Earth · Fonts: Instrument Serif and Manrope · Icons by Lucide</span>`;
+$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Map: Natural Earth · Fonts: Instrument Serif and Manrope · Icons by Lucide</span><button class="mode-btn" id="modeBtn" type="button"></button>`;
+// dark mode: light unless the footer button is pressed; remembered on this device (her pick, 21 Nov, like Jemma’s Journals)
+function setMode(m) {
+  document.documentElement.dataset.mode = m;
+  try { localStorage.setItem("jt-mode", m); } catch (e) {}
+  $("#modeBtn").innerHTML = m === "dark" ? `${icon("sun")}Light mode` : `${icon("moon")}Dark mode`;
+  document.querySelectorAll('link[rel="icon"][data-dark]').forEach(l => { l.dataset.light ||= l.getAttribute("href"); l.href = m === "dark" ? l.dataset.dark : l.dataset.light; });
+}
+$("#modeBtn").onclick = () => setMode(document.documentElement.dataset.mode === "dark" ? "light" : "dark");
+setMode((() => { try { return localStorage.getItem("jt-mode") === "dark" ? "dark" : "light"; } catch (e) { return "light"; } })());
 $("#menuBtn").innerHTML = icon("menu");
 // phone menu: slides in from the left over the page (her ask, 21 Nov: it used to push the page down)
 function setMenu(o) { document.body.classList.toggle("menu-open", o); $("#menuBtn").setAttribute("aria-expanded", o); $("#menuBtn").innerHTML = icon(o ? "x" : "menu"); }

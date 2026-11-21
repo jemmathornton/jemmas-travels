@@ -4,7 +4,7 @@
     {
       "name": "travels",
       "runtimeExecutable": "C:/Users/Jemma/AppData/Local/Programs/Python/Python313/python.exe",
-      "runtimeArgs": ["-m", "http.server", "8041", "--bind", "127.0.0.1", "--directory", "site"],
+      "runtimeArgs": ["-X", "utf8", "tools/serve.py"],
       "port": 8041
     }
   ]

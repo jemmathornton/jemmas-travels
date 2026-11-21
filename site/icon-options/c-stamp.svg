@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><mask id="p"><rect width="64" height="64" fill="#fff"/><g fill="#000">
+<circle cx="4" cy="12" r="3"/><circle cx="4" cy="22" r="3"/><circle cx="4" cy="32" r="3"/><circle cx="4" cy="42" r="3"/><circle cx="4" cy="52" r="3"/>
+<circle cx="60" cy="12" r="3"/><circle cx="60" cy="22" r="3"/><circle cx="60" cy="32" r="3"/><circle cx="60" cy="42" r="3"/><circle cx="60" cy="52" r="3"/>
+<circle cx="12" cy="4" r="3"/><circle cx="22" cy="4" r="3"/><circle cx="32" cy="4" r="3"/><circle cx="42" cy="4" r="3"/><circle cx="52" cy="4" r="3"/>
+<circle cx="12" cy="60" r="3"/><circle cx="22" cy="60" r="3"/><circle cx="32" cy="60" r="3"/><circle cx="42" cy="60" r="3"/><circle cx="52" cy="60" r="3"/></g></mask></defs>
+<rect x="1" y="1" width="62" height="62" fill="#FFFEFA" mask="url(#p)"/><rect x="10" y="10" width="44" height="44" fill="#D9E9EE" stroke="#4A7FA8" stroke-width="2.5"/><path d="M19 40c6-3 10-9 14-9s6 4 12 1" fill="none" stroke="#2F7565" stroke-width="3" stroke-linecap="round"/><circle cx="42" cy="22" r="5" fill="#B4553F"/></svg>

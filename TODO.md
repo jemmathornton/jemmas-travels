@@ -1,7 +1,9 @@
 # To do / to decide
 
 ## For Jemma to choose
-- **How to write posts:** Write page on her PC is OK; through-me for past trips still my suggestion (not decided). Options in `for-jemma/writing-options.md`.
+- **Tab icon:** A Globe, B J on a globe, C Stamp or D Map pin (`for-jemma/tab-icon-options.png`). A is in use for now.
+- **Trial extras:** keep or drop each: routes map, trip route lines, distance travelled, Timeline, Search (`for-jemma/extras-1-trial.jpg`).
+- **Trips across New Year:** year it started (now) or both years. She’ll come back to it.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.
 - **Tagline** on the home page: a line in your own words (or none).
 
@@ -10,7 +12,6 @@ XSS through the address (#/year/…), unknown years now Not found; an unmarked s
 
 ## Still open from the review (need her say, or later)
 - **← Jemma’s Journals link** points at `/` (decided for when all sites share one address). On her PC it just reloads Travels; fine until going online.
-- **Trips across New Year** count in the year they started (said under the chart). Her call if they should show in both years.
 - **Alt text** for real photos: comes from the caption when there is one; a separate alt field could be added.
 - Going online: split world.js so the detailed shapes load only on zoomed maps (1.2 MB now).
 
@@ -24,5 +25,5 @@ XSS through the address (#/year/…), unknown years now Not found; an unmarked s
 - Real trips and dates (the current ones are placeholders).
 - Going online: load the detailed map (world.js is 1.2 MB, mostly the 1:50m shapes) only on pages that zoom in.
 - Comments: choose a service when going online.
-- Dark mode (light by default, button in the footer, like Journals).
-- Tab icon (her own design, like Journals).
+- Write page: editing or deleting a post that’s already saved (only new posts for now).
+- Ideas not mocked yet (need real dates or photos): “on this day”, a chosen cover photo per trip.

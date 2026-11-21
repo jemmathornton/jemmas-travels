@@ -21,6 +21,20 @@ function countryBox(set, id) {
   }
   return (_bbox[k] = [w, s, e, n]);
 }
+function greatCircle(a, b, n) { // n+1 points [lat, lon] along the shortest way round the Earth from a to b
+  const [p1, l1, p2, l2] = [a[0], a[1], b[0], b[1]].map(v => v * RAD);
+  const d = 2 * Math.asin(Math.sqrt(Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin((l2 - l1) / 2) ** 2));
+  if (d < 1e-9) return [a, b];
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, A = Math.sin((1 - t) * d) / Math.sin(d), B = Math.sin(t * d) / Math.sin(d);
+    const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2);
+    const y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2);
+    const z = A * Math.sin(p1) + B * Math.sin(p2);
+    out.push([Math.atan2(z, Math.hypot(x, y)) / RAD, Math.atan2(y, x) / RAD]);
+  }
+  return out;
+}
 function worldMap(pins = [], opts = {}) {
   const zoom = !!opts.focus;
   const [w0, s0, e0, n0] = opts.focus || opts.bounds || [-180, -57, 180, 84];
@@ -69,7 +83,22 @@ function worldMap(pins = [], opts = {}) {
     const path = `<path class="c${v ? " v" : ""}" d="${d}"><title>${escMap(name)}</title></path>`;
     land += v && links[id] ? `<a href="${links[id]}" aria-label="${escMap(name)}">${path}</a>` : path;
   }
-  let pinsSvg = "";
+  // routes (trial extra, 21 Nov): each a list of [lat, lon] stops, drawn along great circles (the way a plane flies)
+  let routesSvg = "";
+  for (const stops of opts.routes || []) {
+    let d = "";
+    for (let i = 0; i < stops.length - 1; i++) {
+      const pts = greatCircle(stops[i], stops[i + 1], 40);
+      let last = null;
+      for (const [la, lo] of pts) {
+        const [x, y] = P(lo, la);
+        d += (last === null || Math.abs(lo - last) > 180 ? "M" : "L") + f(x) + " " + f(y);   // a new stroke where it crosses 180°
+        last = lo;
+      }
+    }
+    if (d) routesSvg += `<path class="route" d="${d}"/>`;
+  }
+  let pinsSvg = routesSvg ? `<g class="routes">${routesSvg}</g>` : "";
   for (const p of pins) {
     const [x, y] = P(p.lon, p.lat).map(f);
     const label = opts.labels ? `<text x="${x}" y="${(y - 13).toFixed(1)}" text-anchor="middle">${escMap(p.label)}</text>` : "";

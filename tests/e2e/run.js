@@ -25,6 +25,7 @@ async function open({ width = 1600, height = 1000, phone = false, host = LOCAL, 
   page.on('console', m => { if (m.type() === 'error') page.errors.push(m.text()); });
   await page.route(host + '**', r => {
     const u = new URL(r.request().url());
+    if (u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false}' });   // files only: no server behind it
     const f = path.join(SITE, u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(1)));
     if (!f.startsWith(path.resolve(SITE)) || !fs.existsSync(f)) return r.fulfill({ status: 404, body: 'missing' });
     r.fulfill({ body: fs.readFileSync(f), contentType: TYPES[path.extname(f)] || 'application/octet-stream' });
@@ -225,7 +226,7 @@ if (SUITE === 'her') {
       await go(page, r);
       const t = await page.evaluate(() => document.body.innerText);
       if (/[A-Za-z]'[A-Za-z]/.test(t)) bad.push(`${r}: straight apostrophe: ${t.match(/.{0,20}[A-Za-z]'[A-Za-z].{0,20}/)[0]}`);
-      if (/\[placeholder\]|\[photos? \d/i.test(t)) bad.push(`${r}: raw marker in text`);
+      if (r !== '#/write' && /\[placeholder\]|\[photos? \d/i.test(t)) bad.push(`${r}: raw marker in text`);   // the Write page shows markers as help
     }
     ok(!bad.length, bad.slice(0, 10).join('\n'));
     await page.close2();
@@ -343,6 +344,75 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
+  // ---- 21 Nov: dark mode, tab icon, trial extras
+  test('dark mode: light at first, the footer button switches and is remembered, text still readable', async () => {
+    const page = await open({ hash: '#/stats' });
+    eq(await page.evaluate(() => document.documentElement.dataset.mode), 'light', 'opens light');
+    await page.click('#modeBtn');
+    eq(await page.evaluate(() => document.documentElement.dataset.mode), 'dark');
+    ok(/Light mode/.test(await page.textContent('#modeBtn')), 'button should offer light mode back');
+    await page.reload({ waitUntil: 'networkidle' });
+    eq(await page.evaluate(() => document.documentElement.dataset.mode), 'dark', 'remembered after reloading');
+    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    ok(bg !== 'rgb(247, 245, 238)', 'background should be dark: ' + bg);
+    for (const r of ['#/', '#/trip/japan-2024/02', '#/countries', '#/map/routes']) {
+      await go(page, r); ok(!page.errors.length, page.errors.join(' / '));
+    }
+    await page.click('#modeBtn');
+    await page.close2();
+  });
+
+  test('the tab has an icon', async () => {
+    const page = await open();
+    const href = await page.evaluate(() => document.querySelector('link[rel="icon"]')?.getAttribute('href'));
+    ok(href && fs.existsSync(path.join(SITE, href)), 'icon file missing: ' + href);
+    await page.close2();
+  });
+
+  test('routes map: one route per trip, from home and back; trip with two places has a line', async () => {
+    const page = await open({ hash: '#/map/routes' });
+    const r = await page.evaluate(() => ({ routes: document.querySelectorAll('.big-map .route').length, trips: TRAVELS.trips.length, home: [...document.querySelectorAll('.big-map .pin title')].some(t => t.textContent.startsWith('Home')) }));
+    eq(r.routes, r.trips, 'routes'); ok(r.home, 'home pin');
+    await go(page, '#/map'); eq(await page.evaluate(() => document.querySelectorAll('.big-map .route').length), 0, 'plain map has no routes');
+    await go(page, '#/trip/nyc-nashville-2024'); eq(await page.evaluate(() => document.querySelectorAll('.trip-map .route').length), 1, 'NYC–Nashville line');
+    await go(page, '#/trip/japan-2024'); eq(await page.evaluate(() => document.querySelectorAll('.trip-map .route').length), 0, 'no named places, no line');
+    await page.close2();
+  });
+
+  test('timeline: every trip once, years in order, empty years grouped', async () => {
+    const page = await open({ hash: '#/timeline' });
+    const r = await page.evaluate(() => ({ trips: [...document.querySelectorAll('.tl-trip h3 a')].map(a => a.getAttribute('href')), all: TRAVELS.trips.length,
+      years: [...document.querySelectorAll('.tl-year-row .tl-year')].map(h => +h.textContent), gaps: [...document.querySelectorAll('.tl-gap')].map(g => g.textContent) }));
+    eq(new Set(r.trips).size, r.all, 'each trip once');
+    eq(r.years, [...r.years].sort((a, b) => b - a), 'newest first');
+    eq(r.gaps, ['2013 – 2022: no trips']);
+    await page.close2();
+  });
+
+  test('search finds trips, countries and places; placeholders are not searched', async () => {
+    const page = await open();
+    const count = async q => { await go(page, '#/search/' + encodeURIComponent(q)); return page.evaluate(() => ({ trips: document.querySelectorAll('#view .trip-card').length, countries: document.querySelectorAll('#view .ctile').length, posts: document.querySelectorAll('#view .post-card').length })); };
+    eq(await count('norway'), { trips: 1, countries: 1, posts: 0 });
+    eq(await count('Nashville'), { trips: 1, countries: 0, posts: 0 });
+    eq(await count('your notes'), { trips: 0, countries: 0, posts: 0 }, 'placeholder text');
+    eq(await count('ZÜRICH xyz'), { trips: 0, countries: 0, posts: 0 });
+    await go(page, '#/search');
+    await page.fill('.search-big input', 'spain'); await page.press('.search-big input', 'Enter'); await page.waitForTimeout(150);
+    eq(await page.evaluate(() => location.hash), '#/search/spain');
+    await page.close2();
+  });
+
+  test('distance travelled on the stats page adds up the trips', async () => {
+    const page = await open({ hash: '#/stats' });
+    const r = await page.evaluate(() => {
+      const f = [...document.querySelectorAll('.fact')].find(x => /distance/i.test(x.querySelector('.fk').textContent));
+      const total = TRAVELS.trips.reduce((n, t) => n + tripKm(t), 0);
+      return [f.querySelector('b').textContent, `${(Math.round(total / 1000) * 1000).toLocaleString('en-GB')} km`];
+    });
+    eq(r[0], r[1]);
+    await page.close2();
+  });
+
   test('only one filter id per map, even with two maps on a page', async () => {
     const page = await open({ hash: '#/trip/japan-2024' });
     const ids = await page.evaluate(() => [...document.querySelectorAll('filter')].map(f => f.id));
@@ -429,6 +499,67 @@ if (SUITE === 'fixture') {
     await go(page, '#/trip/fiji-nz-2027');
     const t = await page.evaluate(() => { const svg = document.querySelector('#view svg.worldmap'), vb = svg.viewBox.baseVal; return [...svg.querySelectorAll('path.c.v')].map(p => { const b = p.getBBox(); return b.x < vb.width && b.x + b.width > 0; }); });
     ok(t.length >= 2 && t.every(Boolean), 'Fiji and New Zealand should both be on the trip map');
+    await page.close2();
+  });
+}
+
+// ---------------------------------------------------------------- the Write page against a real local server (a throwaway copy)
+if (SUITE === 'write') {
+  const BASE = EXPECT.base;   // http://127.0.0.1:<port>/ of tools/serve.py running on the copy
+  const openLive = async (hash, size = { width: 1400, height: 1000 }) => {
+    const ctx = await browser.newContext({ viewport: size });
+    const page = await ctx.newPage(); page.errors = []; page.on('pageerror', e => page.errors.push(e.message));
+    await page.goto(BASE + hash, { waitUntil: 'networkidle' }); page.close2 = () => ctx.close(); return page;
+  };
+  test('a new post with photos is saved, the site rebuilt, and the post shown', async () => {
+    const page = await openLive('#/write');
+    await page.waitForFunction(() => !document.querySelector('#saveBtn').disabled);
+    await page.selectOption('select[name=trip]', 'paris-2026');
+    await page.fill('input[name=days]', '4');
+    await page.fill('input[name=place]', 'Versailles');
+    await page.fill('input[name=title]', 'Gardens & fountains');
+    await page.fill('textarea[name=text]', 'The palace first.\n\n[photo 2 right: Mirror lake]\n\nThen the gardens, which were “huge”.');
+    await page.setInputFiles('#files', EXPECT.photos);
+    eq(await page.evaluate(() => [...document.querySelectorAll('#picked li span')].map(s => s.textContent)), ['1', '2'], 'photos numbered');
+    await Promise.all([page.waitForEvent('load', { timeout: 90000 }), page.click('#saveBtn')]);   // saved: the page reloads on the new post
+    eq(await page.evaluate(() => location.hash), '#/trip/paris-2026/03');
+    await page.waitForLoadState('networkidle');
+    eq(await page.evaluate(() => document.querySelector('.post h1').textContent), 'Gardens & fountains');
+    eq(await page.evaluate(() => document.querySelector('.post-text .inline.right figcaption').textContent), 'Mirror lake');
+    eq(await page.evaluate(() => [...document.images].filter(i => i.naturalWidth > 0).length), 2, 'both photos showing');
+    ok(!page.errors.length, page.errors.join(' / '));
+    await page.close2();
+  });
+  test('a new trip from the Write page', async () => {
+    const page = await openLive('#/write');
+    await page.waitForFunction(() => !document.querySelector('#saveBtn').disabled);
+    await page.selectOption('select[name=trip]', '');
+    ok(await page.isVisible('.newtrip'), 'new trip fields should show');
+    await page.fill('input[name=ntitle]', 'Lakes');
+    await page.fill('input[name=nfrom]', '2027-05');
+    await page.check('input[name=nc][value=IT]');
+    await page.fill('input[name=title]', 'Como');
+    await Promise.all([page.waitForEvent('load', { timeout: 90000 }), page.click('#saveBtn')]);
+    eq(await page.evaluate(() => location.hash), '#/trip/lakes-2027/01');
+    eq(await page.evaluate(() => document.querySelector('.crumbs').textContent.includes('Lakes')), true);
+    await page.close2();
+  });
+  test('a problem is shown and nothing is saved', async () => {
+    const page = await openLive('#/write');
+    await page.waitForFunction(() => !document.querySelector('#saveBtn').disabled);
+    await page.selectOption('select[name=trip]', 'chile-2026');
+    await page.fill('input[name=title]', 'Oops');
+    await page.fill('textarea[name=text]', '[photo 5 left]');
+    await page.click('#saveBtn');
+    await page.waitForFunction(() => /Not saved/.test(document.querySelector('#wMsg').textContent), null, { timeout: 30000 });
+    ok(/photo 5/.test(await page.textContent('#wMsg')), await page.textContent('#wMsg'));
+    eq(await page.evaluate(() => location.hash), '#/write', 'stayed on the Write page');
+    await page.close2();
+  });
+  test('without the server, the Write page says how to save and won’t try', async () => {
+    const page = await open({ hash: '#/write' });   // served from files, no server behind it
+    await page.waitForFunction(() => document.querySelector('#saveBtn').disabled);
+    ok(/start the .travels. preview/.test(await page.textContent('#wServer')), await page.textContent('#wServer'));
     await page.close2();
   });
 }
