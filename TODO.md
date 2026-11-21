@@ -1,7 +1,7 @@
 # To do / to decide
 
 ## For Jemma to choose
-- **Sidebar:** pale or sea green; and plain paper or faint grid with the pale one (sheets `for-jemma/round-4-*.jpg`, or the switch). Banner and plain paper are her picks.
+- **Sidebar:** pale with faint grid, pale plain, or sea green (the switch on the site). Banner and plain paper are her picks.
 - **How to write posts:** Write page on her PC is OK; through-me for past trips still my suggestion (not decided). Options in `for-jemma/writing-options.md`.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.
 - **Tagline** on the home page: a line in your own words (or none).

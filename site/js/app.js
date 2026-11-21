@@ -169,7 +169,7 @@ function pageHome() {
   const latest = TRIPS.flatMap(t => postsOf(t.id)).slice(0, 3);
   const continents = new Set(VISITED.map(c => country(c).continent));
   return `<section class="hero">
-      <div class="hero-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), slice: true, aria: "Countries visited" })}</div>
+      <div class="hero-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), aria: "Countries visited" })}</div>
       <div class="hero-text"><div class="kicker">${plural(TRIPS.length, "trip")} · ${YEARS[YEARS.length - 1]} to ${YEARS[0]}</div>
       <h1>Jemma’s <em>Travels</em></h1>
       <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
@@ -334,8 +334,7 @@ addEventListener("hashchange", render);
 // ---------- trial switch (only while she is choosing; round 3: Old Atlas variations) ----------
 // Each row sets one attribute on <html>; ?layout=…&header=…&bg=… in the address picks them too.
 const TRIAL = {
-  layout: { label: "Layout", opts: { "side-pale": "Sidebar, pale", "side-sea": "Sidebar, sea green" } },
-  bg: { label: "Background", opts: { plain: "Plain paper", grid: "Faint grid" } },
+  layout: { label: "Sidebar", opts: { "side-pale-grid": "Pale with faint grid", "side-pale": "Pale, plain", "side-sea": "Sea green" } },
 };
 function setTrial(row, k) {
   document.documentElement.dataset[row] = k;
@@ -346,6 +345,7 @@ function setTrial(row, k) {
   const q = new URLSearchParams(location.search);
   document.documentElement.dataset.look = "f";
   document.documentElement.dataset.header = "banner";   // her pick, 21 Nov
+  document.documentElement.dataset.bg = "plain";        // her pick, 21 Nov
   const box = document.createElement("div"); box.className = "trial";
   box.innerHTML = Object.entries(TRIAL).map(([row, t]) => `<div class="trow"><span>${t.label}</span>${Object.entries(t.opts).map(([k, v]) => `<button data-row="${row}" data-k="${k}">${v}</button>`).join("")}</div>`).join("");
   box.onclick = e => { const b = e.target.closest("button"); if (b) setTrial(b.dataset.row, b.dataset.k); };
