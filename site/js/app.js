@@ -335,28 +335,6 @@ const scrim = document.createElement("div"); scrim.className = "scrim"; scrim.on
 addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });
 addEventListener("hashchange", render);
 
-// ---------- trial switch (only while she is choosing; round 3: Old Atlas variations) ----------
-// Each row sets one attribute on <html>; ?layout=…&header=…&bg=… in the address picks them too.
-const TRIAL = {
-  layout: { label: "Sidebar", opts: { "side-pale-grid": "Pale with faint grid", "side-pale": "Pale, plain", "side-sea": "Sea green" } },
-};
-function setTrial(row, k) {
-  document.documentElement.dataset[row] = k;
-  try { localStorage.setItem("jt-" + row, k); } catch (e) {}
-  document.querySelectorAll(`.trial button[data-row="${row}"]`).forEach(b => b.classList.toggle("on", b.dataset.k === k));
-}
-(function trial() {
-  const q = new URLSearchParams(location.search);
-  document.documentElement.dataset.look = "f";
-  document.documentElement.dataset.header = "banner";   // her pick, 21 Nov
-  document.documentElement.dataset.bg = "plain";        // her pick, 21 Nov
-  const box = document.createElement("div"); box.className = "trial";
-  box.innerHTML = Object.entries(TRIAL).map(([row, t]) => `<div class="trow"><span>${t.label}</span>${Object.entries(t.opts).map(([k, v]) => `<button data-row="${row}" data-k="${k}">${v}</button>`).join("")}</div>`).join("");
-  box.onclick = e => { const b = e.target.closest("button"); if (b) setTrial(b.dataset.row, b.dataset.k); };
-  if (q.get("trial") !== "off") document.body.appendChild(box);
-  for (const [row, t] of Object.entries(TRIAL)) {
-    let k = q.get(row); if (!k) try { k = localStorage.getItem("jt-" + row); } catch (e) {}
-    setTrial(row, t.opts[k] ? k : Object.keys(t.opts)[0]);
-  }
-})();
+// ---------- her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper ----------
+Object.assign(document.documentElement.dataset, { look: "f", layout: "side-pale-grid", header: "banner", bg: "plain" });
 render();

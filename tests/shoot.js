@@ -9,7 +9,7 @@ const { chromium } = require('C:/Users/Jemma/Documents/SimTracker/node_modules/p
 const ROOT = path.join(__dirname, '..', 'site');
 const HOST = 'http://localhost:8099/';
 const OUT = path.resolve(process.argv[2] || path.join(__dirname, '..', 'for-jemma', 'looks'));
-const LOOKS = (process.argv[3] || 'b,c,e,f,g').split(',');
+const LOOKS = (process.argv[3] || 'f').split(',');
 const PAGES = (process.argv[4] || 'home,trips,trip/japan-2024,trip/japan-2024/02,map,countries,stats,write').split(',');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 const SIZES = [

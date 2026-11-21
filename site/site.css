@@ -696,7 +696,7 @@ html[data-look=f][data-header=banner] .hero-map svg { position: static; height: 
 }
 /* pale sidebar with a faint grid in the sidebar itself (her idea, 21 Nov); the page stays plain paper */
 html[data-look=f][data-layout=side-pale-grid] { --side-bg: #ECF1EA; --side-ink: #24403E; --side-muted: #6F8580; --side-on: rgba(62, 138, 122, .13); --brand-em: #3E8A7A; }
-html[data-look=f][data-layout=side-pale-grid] .side { background-color: var(--side-bg); background-image: linear-gradient(rgba(74, 127, 168, .10) 1px, transparent 1px), linear-gradient(90deg, rgba(74, 127, 168, .10) 1px, transparent 1px); background-size: 24px 24px; background-position: -1px -1px; }
+html[data-look=f][data-layout=side-pale-grid] .side { background-color: var(--side-bg); background-image: linear-gradient(rgba(74, 127, 168, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(74, 127, 168, .055) 1px, transparent 1px); background-size: 24px 24px; background-position: -1px -1px; }
 @media (min-width: 821px) { html[data-look=f][data-layout=side-pale-grid] .side { border-right: 3px double #D3DCD3; } }
 /* banner map: a column with a definite width, map scaled to fit inside it (never cropped) */
 @media (min-width: 1241px) {
@@ -726,7 +726,7 @@ html[data-look=f] .stamp { display: block; place-items: initial; position: absol
   .nav, html:not([data-look=a]) .nav { display: block; position: fixed; top: 0; left: 0; bottom: 0; width: min(300px, 84vw); z-index: 2; overflow: auto;
     padding: 84px 14px 24px; background-color: var(--side-bg); box-shadow: 0 0 40px rgba(20, 40, 40, .22);
     transform: translateX(-104%); transition: transform .25s ease; visibility: hidden; }
-  html[data-look=f][data-layout=side-pale-grid] .nav { background-image: linear-gradient(rgba(74, 127, 168, .10) 1px, transparent 1px), linear-gradient(90deg, rgba(74, 127, 168, .10) 1px, transparent 1px); background-size: 24px 24px; }
+  html[data-look=f][data-layout=side-pale-grid] .nav { background-image: linear-gradient(rgba(74, 127, 168, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(74, 127, 168, .055) 1px, transparent 1px); background-size: 24px 24px; }
   .menu-open .nav, html:not([data-look=a]) body.menu-open .nav { transform: none; visibility: visible; }
   .nav .nav-years, html:not([data-look=a]) .nav .nav-years { display: block; }
   html[data-look=f] .nav a { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 600; padding: 10px 12px; border-radius: 6px; color: var(--side-ink); }
@@ -737,4 +737,10 @@ html[data-look=f] .stamp { display: block; place-items: initial; position: absol
   .side-top { position: relative; z-index: 3; }
   .menu-open .side-top .brand, .menu-open .side-top .home-link { visibility: visible; }
   @media (prefers-reduced-motion: reduce) { .nav { transition: none; } }
+}
+/* phone: menu button on the left, the side the menu slides in from (her ask, 21 Nov) */
+@media (max-width: 820px) {
+  .side-top, html:not([data-look=a]) .side-top { justify-content: flex-start; column-gap: 12px; }
+  .menu-btn { order: 1; }
+  .side-top .brand { order: 2; }
 }
