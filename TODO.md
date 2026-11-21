@@ -1,7 +1,7 @@
 # To do / to decide
 
 ## For Jemma to choose
-- **Old Atlas variations:** layout, home header, background (sheets `for-jemma/round-3-*.jpg`, or the switch on the site). My suggestion (not decided): sidebar sea green + banner + paper grain or plain.
+- **Sidebar:** pale or sea green; and plain paper or faint grid with the pale one (sheets `for-jemma/round-4-*.jpg`, or the switch). Banner and plain paper are her picks.
 - **How to write posts:** Write page on her PC is OK; through-me for past trips still my suggestion (not decided). Options in `for-jemma/writing-options.md`.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.
 - **Tagline** on the home page: a line in your own words (or none).

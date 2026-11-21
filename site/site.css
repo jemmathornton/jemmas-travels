@@ -671,3 +671,26 @@ html[data-look=f][data-header=label] .hero-map svg { top: 0; height: 100%; trans
   html[data-look=f][data-header=label] .hero::before { display: none; }
 }
 @media (max-width: 820px) { html[data-look=f] .stat:nth-child(2n) { border-right: 0; } }
+
+/* ---------- Round 4 (21 Nov): her picks: banner, sidebar, plain paper. Banner reworked so the title never sits on the map ---------- */
+html[data-look=f][data-header=banner] .hero {
+  display: grid; grid-template-columns: minmax(330px, 1fr) auto; align-items: center; column-gap: 64px;
+  height: 340px; padding: 24px calc(-1 * var(--bleed) + 48px);
+}
+html[data-look=f][data-header=banner] .hero-text { order: 1; align-self: center; max-width: none; }
+html[data-look=f][data-header=banner] .hero h1 { font-size: clamp(50px, 4.4vw, 70px); white-space: nowrap; }
+html[data-look=f][data-header=banner] .tagline { max-width: 34ch; }
+html[data-look=f][data-header=banner] .hero-map { order: 2; position: relative; inset: auto; height: 100%; display: flex; justify-content: flex-end; align-items: center; min-width: 0; }
+html[data-look=f][data-header=banner] .hero-map svg { position: static; height: 100%; width: auto; max-width: 100%; transform: none; -webkit-mask-image: none; mask-image: none; }
+/* smaller windows: map on top, title underneath, nothing squashed */
+@media (max-width: 1240px) {
+  html[data-look=f][data-header=banner] .hero { grid-template-columns: 1fr; height: auto; padding-top: 18px; padding-bottom: 26px; row-gap: 16px; }
+  html[data-look=f][data-header=banner] .hero-map { order: 0; height: auto; justify-content: center; }
+  html[data-look=f][data-header=banner] .hero-map svg { width: 100%; max-width: 760px; height: auto; }
+  html[data-look=f][data-header=banner] .hero-text { order: 1; }
+}
+@media (max-width: 820px) {
+  html[data-look=f][data-header=banner] .hero { padding: 0 16px 20px; }
+  html[data-look=f][data-header=banner] .hero-map { margin: 0 -16px; }
+  html[data-look=f][data-header=banner] .hero h1 { font-size: 44px; white-space: normal; }
+}

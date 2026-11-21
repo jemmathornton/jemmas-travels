@@ -334,9 +334,8 @@ addEventListener("hashchange", render);
 // ---------- trial switch (only while she is choosing; round 3: Old Atlas variations) ----------
 // Each row sets one attribute on <html>; ?layout=…&header=…&bg=… in the address picks them too.
 const TRIAL = {
-  layout: { label: "Layout", opts: { "side-pale": "Sidebar, pale", "side-sea": "Sidebar, sea green", top: "Top bar" } },
-  header: { label: "Home header", opts: { banner: "Banner", label: "Title label", plate: "Title over map" } },
-  bg: { label: "Background", opts: { plain: "Plain paper", grain: "Paper grain", grid: "Faint grid", waves: "Sea-chart lines", dots: "Dots (now)" } },
+  layout: { label: "Layout", opts: { "side-pale": "Sidebar, pale", "side-sea": "Sidebar, sea green" } },
+  bg: { label: "Background", opts: { plain: "Plain paper", grid: "Faint grid" } },
 };
 function setTrial(row, k) {
   document.documentElement.dataset[row] = k;
@@ -346,6 +345,7 @@ function setTrial(row, k) {
 (function trial() {
   const q = new URLSearchParams(location.search);
   document.documentElement.dataset.look = "f";
+  document.documentElement.dataset.header = "banner";   // her pick, 21 Nov
   const box = document.createElement("div"); box.className = "trial";
   box.innerHTML = Object.entries(TRIAL).map(([row, t]) => `<div class="trow"><span>${t.label}</span>${Object.entries(t.opts).map(([k, v]) => `<button data-row="${row}" data-k="${k}">${v}</button>`).join("")}</div>`).join("");
   box.onclick = e => { const b = e.target.closest("button"); if (b) setTrial(b.dataset.row, b.dataset.k); };

@@ -27,6 +27,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - 21 Nov: Write page OK as long as it’s only on her PC.
 - 21 Nov: **GitHub backup: yes**, to the repo she made (jemmas-travels, public).
 - 21 Nov (round 3): **F Old Atlas is closest.** Not sold on the dotted paper background; the map was cropped (fixed: tip of South America, New Zealand); the home page needs a header, not just a big map; worried it’s too far from her other apps (no sidebar). The switch now offers Old Atlas variations only: Layout (sidebar pale / sidebar sea green / top bar), Home header (banner / title label / title over map), Background (plain / grain / grid / sea-chart lines / dots). Sheets: `for-jemma/round-3-*.jpg`.
+- 21 Nov (round 4): **her picks: banner home header, a sidebar, plain paper.** The banner was reworked (title in its own column, never on the map; under ~1240px wide the map goes on top and the title underneath). Still open: **pale or sea green sidebar**, and whether the faint grid suits the pale one (sheets `for-jemma/round-4-*.jpg`; the switch has just those two rows).
 
 ## Where things are
 
@@ -36,6 +37,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - `imports/world-atlas-2.0.2/`: Natural Earth country shapes as downloaded (110m and 50m TopoJSON, ISC licence). `tools/make_world.py` (run with `python -I`) turns them into `site/js/world.js` (generated; 1:110m for world maps, 1:50m for zoomed maps; rings across 180° made continuous). `site/js/map.js` draws them in the Natural Earth projection.
 - `tools/build.py`: builds `site/js/data.js` (**generated, never edit**) and stamps file fingerprints into `site/index.html`. Run after any change to data/ or site/.
 - `site/`: the app (`index.html`, `site.css`, `js/app.js` pages and router, `js/map.js` dotted map, `js/icons.js` Lucide). Pages: home, trips by year, a trip, a post (with comments), map, countries tracker, a country, stats, Write (only on her PC: localhost/file).
+- `tests/banner_widths.js`: round-4 shots (banner at 1600/1366/1100/900/390 wide, checks the title never sits on the map; sidebar × background); `tools/make_sheets4.py` makes the sheets.
 - `tests/variants.js`: screenshots of the round-3 variations into `for-jemma/looks-3/`; `tools/make_sheets3.py` makes the round-3 sheets. `tests/element_shot.js`: one element of a page (set MSYS_NO_PATHCONV=1 in Git Bash so `#/` isn’t mangled).
 - `tests/shoot.js`: screenshots every look × page × laptop/phone into `for-jemma/looks/` and fails on page errors or sideways scrolling. `tools/make_sheets.py` turns them into the labelled `for-jemma/choice-*.jpg`.
 
