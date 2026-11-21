@@ -441,3 +441,60 @@ label.drop { cursor: pointer; }
 .facts + .sec.chart-sec { margin-top: 40px; }
 /* Map page: space between the tracker and the country boxes below it (found by the "boxes never touch" check) */
 .tracker { margin-bottom: 32px; }
+
+/* ---------- sidebar folders (trial, 21 Nov) ---------- */
+.fold-row { display: flex; align-items: center; }
+.fold-row > a, .fold-row > .fold-label { flex: 1; min-width: 0; }
+.fold-label { display: flex; align-items: center; gap: 11px; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 14.5px; color: var(--side-ink); cursor: pointer; }
+.fold-label svg { width: 17px; height: 17px; opacity: .8; flex: none; }
+.fold-label small { margin-left: auto; color: var(--side-muted); font-size: 12px; font-weight: 600; }
+.fold-label:hover { background: var(--side-on); }
+.fold-btn { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-left: 2px; border: 0; border-radius: 6px; background: none; color: var(--side-muted); cursor: pointer; }
+.fold-btn:hover { background: var(--side-on); color: var(--side-ink); }
+.fold-btn svg { width: 15px; height: 15px; transition: transform .15s ease; }
+.fold.open > .fold-row > .fold-btn svg { transform: rotate(90deg); }
+.fold-body { margin: 2px 0 6px 20px; padding-left: 6px; border-left: 1px solid var(--side-line); }
+.nav a.sub, .nav a.sub2 { font-weight: 500; font-size: 14px; padding: 6px 12px; }
+.nav a.sub svg, .nav a.sub2 svg { width: 15px; height: 15px; }
+.fold-body .fold-label { font-weight: 600; font-size: 14px; padding: 6px 12px; }
+.fold-body .fold-label svg { width: 15px; height: 15px; }
+
+/* ---------- trips: by year / by country (trial, 21 Nov) ---------- */
+.tabs { display: inline-flex; gap: 4px; margin-top: 16px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.tabs a { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; color: var(--ink2); }
+.tabs a svg { width: 15px; height: 15px; }
+.tabs a.on { background: var(--accent-soft); color: var(--ink); }
+.tabs a:hover:not(.on) { background: var(--side-on); }
+:root[data-mode=dark] .tabs a.on { background: var(--side-on); }
+.tabs + .filters { margin-top: 10px; }
+.year-group > .year-h:not(:has(a))::before { content: "— "; color: var(--brand-em); }
+.by-country { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 6px 24px; padding: 10px 0; border-bottom: 1px dotted var(--line); }
+.by-country h3 { font: 600 16px/1.4 var(--sans); margin: 0; }
+.by-country h3 a { text-decoration: none; color: var(--ink); }
+.by-country h3 a:hover { color: var(--accent); text-decoration: underline; }
+.trip-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.trip-lines li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.trip-lines a { font-weight: 600; color: var(--accent); }
+.trip-lines small { color: var(--muted); font-size: 13px; }
+@media (max-width: 600px) { .by-country { grid-template-columns: 1fr; } }
+
+/* ---------- the trial switch, bottom right (goes once she picks) ---------- */
+.try-switch { position: fixed; right: 14px; bottom: 14px; z-index: 50; display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(20, 40, 40, .18); font-size: 13px; }
+.try-switch b { margin: 0 6px 0 4px; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.try-switch button { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 5px 10px; font: 600 13px var(--sans); cursor: pointer; }
+.try-switch button[aria-pressed=true] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.menu-open .try-switch { display: none; }
+@media print { .try-switch { display: none; } }
+.fold-body { margin-left: 14px; padding-left: 4px; }
+.fold-body .fold-label, .nav a.sub, .nav a.sub2 { gap: 8px; padding-left: 8px; padding-right: 8px; }
+.fold-label > span, .nav a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold-body .fold-label > svg, .nav a.sub2 > svg { display: none; }   /* continents and countries: names only, so they fit */
+
+/* ---------- from the 21 Nov check ---------- */
+.back-trip { margin-top: 18px; }
+.back-trip a { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.back-trip svg { width: 16px; height: 16px; }
+.not-found-links { font-weight: 600; }
+:root[data-mode=dark] .photo.empty { background: linear-gradient(140deg, hsl(var(--h) 18% 30%), hsl(calc(var(--h) + 25) 16% 24%)); }
+:root[data-mode=dark] .photo.empty span { color: hsl(var(--h) 25% 85%); }

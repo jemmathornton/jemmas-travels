@@ -66,7 +66,7 @@ function worldMap(pins = [], opts = {}) {
   for (const id in WORLD[set]) {
     const b = countryBox(set, id);
     if (!turns.some(o => !(b[2] + o < w0 - pad || b[0] + o > e0 + pad)) || b[3] < s0 - pad || b[1] > n0 + pad) continue;
-    const [name, rings] = WORLD[set][id];
+    const [ne, rings] = WORLD[set][id], name = (window.MAP_NAMES && MAP_NAMES[id]) || ne;
     let d = "";
     for (const o of turns) for (const r of rings) {
       // skip pieces nowhere near the picture (keeps the map small, and stops far-off islands stretching it)

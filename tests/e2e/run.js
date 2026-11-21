@@ -43,7 +43,7 @@ async function go(page, hash) {
   }), hash);
 }
 const routes = page => page.evaluate(() => {
-  const D = TRAVELS, r = ['#/', '#/trips', '#/map', '#/countries', '#/stats', '#/write'];
+  const D = TRAVELS, r = ['#/', '#/trips', '#/trips/by-country', '#/map', '#/countries', '#/stats', '#/write'];
   for (const y of new Set(D.trips.map(t => t.from.slice(0, 4)))) r.push('#/year/' + y);
   for (const t of D.trips) r.push('#/trip/' + t.id);
   for (const p of D.posts) r.push(`#/trip/${p.trip}/${p.slug}`);
@@ -425,7 +425,7 @@ if (SUITE === 'her') {
     eq(await page.evaluate(() => thisTimeOfYear(new Date(2026, 0, 5))), '', 'January: nothing');
     await go(page, '#/stats');
     const f = await page.evaluate(() => [...document.querySelectorAll('.firsts li')].map(li => li.querySelector('.fk').textContent + ': ' + li.querySelector('a').textContent));
-    eq(f, ['First time in Asia: India', 'First time in North America: Canada and Boston', 'First time in Europe: France and Spain', 'First time in South America: Brazil and Argentina']);
+    eq(f, ['First time in Asia: India', 'First time in North America: Canada and Boston', 'First time in South America: Brazil and Argentina'], 'not her home continent');
     await go(page, '#/surprise'); await page.waitForTimeout(150);
     ok(/^#\/trip\//.test(await page.evaluate(() => location.hash)), 'surprise lands on a trip or post');
     await page.close2();
@@ -449,6 +449,58 @@ if (SUITE === 'her') {
     ok(r.map && r.ring && r.tiles > 0, JSON.stringify(r)); ok(!r.nav.includes('Countries'), r.nav.join(', '));
     await go(page, '#/countries'); eq((await shown(page)).h1, 'Map');
     await go(page, '#/country/FR'); eq(await page.evaluate(() => document.querySelector('#nav a.on span').textContent), 'Map', 'country pages light up Map');
+    await page.close2();
+  });
+
+  test('sidebar trial A, B, C: folders open to years and countries, every country listed, links work, phone too', async () => {
+    for (const [w, h, phone] of [WIDTHS[0], WIDTHS[3]]) for (const k of ['a', 'b', 'c']) {
+      const page = await open({ width: w, height: h, phone, hash: '#/country/JP' });
+      await page.evaluate(k => document.querySelector(`.try-switch button[data-k="${k}"]`).click(), k);
+      const r = await page.evaluate(() => {
+        const D = TRAVELS, visited = [...new Set(D.trips.flatMap(t => t.countries))].filter(c => c !== D.home);
+        const links = [...document.querySelectorAll('#nav a')].map(a => a.getAttribute('href'));
+        return { visited, links, on: [...document.querySelectorAll('#nav a.on')].map(a => a.getAttribute('href')), err: document.documentElement.scrollWidth - innerWidth };
+      });
+      eq(r.err, 0, `${k} ${w}: sideways scrolling`);
+      if (k === 'c') { ok(!r.links.some(l => l.startsWith('#/country/') || l.startsWith('#/year/')), 'C has no lists'); }
+      else {
+        for (const c of r.visited) ok(r.links.includes('#/country/' + c), `${k}: ${c} missing from the sidebar`);
+        ok(r.on.includes('#/country/JP'), `${k}: Japan lit up on its page (${r.on})`);
+        // a folder opens and closes without leaving the page
+        const before = await page.evaluate(() => location.hash);
+        const t = await page.evaluate(() => { const f = document.querySelector('[data-fold="c-Europe"]'); const was = f.classList.contains('open'); f.querySelector('.fold-btn').click(); return [was, f.classList.contains('open'), f.querySelector('.fold-body').hidden]; });
+        eq(t, [false, true, false], `${k}: Europe folder opens`);
+        eq(await page.evaluate(() => location.hash), before, 'still on the same page');
+        await go(page, '#/year/2024');
+        ok(await page.evaluate(() => [...document.querySelectorAll('#nav a.on')].some(a => a.getAttribute('href') === '#/year/2024')), `${k}: 2024 lit up on its page`);
+      }
+      await go(page, '#/trips/by-country');
+      const bc = await page.evaluate(() => ({ h1: document.querySelector('#view h1').textContent, countries: [...document.querySelectorAll('.by-country h3 a')].map(a => a.getAttribute('href')), tab: document.querySelector('.tabs a.on')?.textContent }));
+      eq(bc.h1, 'Trips'); eq(bc.tab, 'By country');
+      eq(bc.countries.length, r.visited.length, 'every country on Trips by country');
+      eq(page.errors, [], 'page errors');
+      await page.close2();
+    }
+  });
+
+  test('from the 21 Nov check: no repeated names, year once, Previous/Next words, ways on from Not found', async () => {
+    const page = await open({ hash: '#/map' });
+    const titles = await page.evaluate(() => [...document.querySelectorAll('.big-map .pin title')].map(t => t.textContent));
+    ok(!titles.some(t => { const [a, b] = t.split(' · '); return a === b; }), 'pin says a name twice: ' + titles.join(', '));
+    ok(await page.evaluate(() => [...document.querySelectorAll('.big-map path.c title')].some(t => t.textContent === 'United States')), 'map uses the page name for the US');
+    await go(page, '#/year/2024');
+    eq(await page.evaluate(() => document.querySelectorAll('.year-h').length), 0, 'year page says its year once');
+    await go(page, '#/trips');
+    ok(await page.evaluate(() => [...document.querySelectorAll('.trip-card')].every(c => ![...c.querySelectorAll('.chip')].some(ch => ch.textContent === c.querySelector('h3').textContent))), 'a card repeats its title as a chip');
+    await go(page, '#/trip/japan-2024/02');
+    const nav = await page.evaluate(() => [...document.querySelectorAll('.post-nav small')].map(s => s.textContent.split(' · ')[0]));
+    eq(nav, ['Previous', 'Next']);
+    ok(await page.evaluate(() => !!document.querySelector('.back-trip a[href="#/trip/japan-2024"]')), 'back to the trip');
+    eq(await page.evaluate(() => document.querySelectorAll('.comments textarea, .comments button').length), 0, 'no greyed-out comment box');
+    await go(page, '#/trip/nope');
+    eq(await page.evaluate(() => [...document.querySelectorAll('.not-found-links a')].map(a => a.getAttribute('href'))), ['#/', '#/trips', '#/map']);
+    await go(page, '#/country/GB'); ok((await shown(page)).text.includes('not counted'), 'home country page says why it’s empty');
+    eq(page.errors, []);
     await page.close2();
   });
 
