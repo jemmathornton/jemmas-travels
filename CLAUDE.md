@@ -26,7 +26,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - 21 Nov: the trips are **placeholders** for now (her words); Portugal is April. Home for distances: **Birmingham**.
 - 21 Nov: Write page OK as long as it’s only on her PC.
 - 21 Nov: **GitHub backup: yes**; she is creating the repo herself (wait for her link, don’t create one).
-- Still open: which of E Airmail Atlas, F Old Atlas, G Seaside Postcards (B and C kept on the switch for comparing).
+- 21 Nov (round 3): **F Old Atlas is closest.** Not sold on the dotted paper background; the map was cropped (fixed: tip of South America, New Zealand); the home page needs a header, not just a big map; worried it’s too far from her other apps (no sidebar). The switch now offers Old Atlas variations only: Layout (sidebar pale / sidebar sea green / top bar), Home header (banner / title label / title over map), Background (plain / grain / grid / sea-chart lines / dots). Sheets: `for-jemma/round-3-*.jpg`.
 
 ## Where things are
 
@@ -36,6 +36,7 @@ A blog of Jemma’s trips: each trip has posts (one day or several days together
 - `imports/world-atlas-2.0.2/`: Natural Earth country shapes as downloaded (110m and 50m TopoJSON, ISC licence). `tools/make_world.py` (run with `python -I`) turns them into `site/js/world.js` (generated; 1:110m for world maps, 1:50m for zoomed maps; rings across 180° made continuous). `site/js/map.js` draws them in the Natural Earth projection.
 - `tools/build.py`: builds `site/js/data.js` (**generated, never edit**) and stamps file fingerprints into `site/index.html`. Run after any change to data/ or site/.
 - `site/`: the app (`index.html`, `site.css`, `js/app.js` pages and router, `js/map.js` dotted map, `js/icons.js` Lucide). Pages: home, trips by year, a trip, a post (with comments), map, countries tracker, a country, stats, Write (only on her PC: localhost/file).
+- `tests/variants.js`: screenshots of the round-3 variations into `for-jemma/looks-3/`; `tools/make_sheets3.py` makes the round-3 sheets. `tests/element_shot.js`: one element of a page (set MSYS_NO_PATHCONV=1 in Git Bash so `#/` isn’t mangled).
 - `tests/shoot.js`: screenshots every look × page × laptop/phone into `for-jemma/looks/` and fails on page errors or sideways scrolling. `tools/make_sheets.py` turns them into the labelled `for-jemma/choice-*.jpg`.
 
 ## How to work here

@@ -24,7 +24,10 @@ function worldMap(pins = [], opts = {}) {
   const [w0, s0, e0, n0] = opts.focus || opts.bounds || [-180, -57, 180, 84];
   const set = zoom && (e0 - w0) < 120 ? "hi" : "lo";
   // fit the focus box (in projected units) to a 1000-wide picture
-  const corners = [[w0, s0], [w0, n0], [e0, s0], [e0, n0], [(w0 + e0) / 2, n0], [(w0 + e0) / 2, s0]].map(([a, b]) => neProject(a, b));
+  // the edges bulge (widest at the equator), so sample along all four sides, not just the corners
+  const corners = [];
+  for (let i = 0; i <= 12; i++) { const lat = s0 + (n0 - s0) * i / 12, lon = w0 + (e0 - w0) * i / 12; corners.push([w0, lat], [e0, lat], [lon, s0], [lon, n0]); }
+  corners.forEach((c, i) => { corners[i] = neProject(c[0], c[1]); });
   const xs = corners.map(c => c[0]), ys = corners.map(c => c[1]);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const W = 1000, k = W / (maxX - minX), H = Math.round((maxY - minY) * k);
@@ -62,5 +65,5 @@ function worldMap(pins = [], opts = {}) {
     const body = `<g class="pin"><circle class="pin-halo" cx="${x}" cy="${y}" r="9"/><circle class="pin-dot" cx="${x}" cy="${y}" r="4.5"/>${label}<title>${esc(p.title || p.label)}</title></g>`;
     pinsSvg += p.href ? `<a href="${p.href}" aria-label="${esc(p.title || p.label)}">${body}</a>` : body;
   }
-  return `<svg class="worldmap${zoom ? " zoom" : ""}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.aria || "World map")}"><defs><filter id="rough" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="${zoom ? 4 : 2.2}"/></filter></defs><rect class="sea" width="${W}" height="${H}"/><path class="grat" d="${lines}"/><g class="land">${land}</g>${pinsSvg}</svg>`;
+  return `<svg class="worldmap${zoom ? " zoom" : ""}" viewBox="0 0 ${W} ${H}"${opts.slice ? ' preserveAspectRatio="xMidYMid slice"' : ""} role="img" aria-label="${esc(opts.aria || "World map")}"><defs><filter id="rough" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="${zoom ? 4 : 2.2}"/></filter></defs><rect class="sea" width="${W}" height="${H}"/><path class="grat" d="${lines}"/><g class="land">${land}</g>${pinsSvg}</svg>`;
 }

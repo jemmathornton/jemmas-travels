@@ -169,7 +169,7 @@ function pageHome() {
   const latest = TRIPS.flatMap(t => postsOf(t.id)).slice(0, 3);
   const continents = new Set(VISITED.map(c => country(c).continent));
   return `<section class="hero">
-      <div class="hero-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), bounds: [-180, -50, 180, 78], aria: "Countries visited" })}</div>
+      <div class="hero-map">${worldMap(placePins(TRIPS), { ...mapOpts(VISITED), slice: true, aria: "Countries visited" })}</div>
       <div class="hero-text"><div class="kicker">${plural(TRIPS.length, "trip")} · ${YEARS[YEARS.length - 1]} to ${YEARS[0]}</div>
       <h1>Jemma’s <em>Travels</em></h1>
       <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
@@ -331,16 +331,28 @@ $("#menuBtn").innerHTML = icon("menu");
 $("#menuBtn").onclick = () => { const o = document.body.classList.toggle("menu-open"); $("#menuBtn").setAttribute("aria-expanded", o); };
 addEventListener("hashchange", render);
 
-// ---------- trial switch (only while she is choosing a look) ----------
-const LOOKS = { b: "B · Postcard", c: "C · Atlas", e: "E · Airmail Atlas", f: "F · Old Atlas", g: "G · Seaside Postcards" };
-function setLook(k) { document.documentElement.dataset.look = k; try { localStorage.setItem("jt-look", k); } catch (e) {} document.querySelectorAll(".trial button").forEach(b => b.classList.toggle("on", b.dataset.k === k)); }
+// ---------- trial switch (only while she is choosing; round 3: Old Atlas variations) ----------
+// Each row sets one attribute on <html>; ?layout=…&header=…&bg=… in the address picks them too.
+const TRIAL = {
+  layout: { label: "Layout", opts: { "side-pale": "Sidebar, pale", "side-sea": "Sidebar, sea green", top: "Top bar" } },
+  header: { label: "Home header", opts: { banner: "Banner", label: "Title label", plate: "Title over map" } },
+  bg: { label: "Background", opts: { plain: "Plain paper", grain: "Paper grain", grid: "Faint grid", waves: "Sea-chart lines", dots: "Dots (now)" } },
+};
+function setTrial(row, k) {
+  document.documentElement.dataset[row] = k;
+  try { localStorage.setItem("jt-" + row, k); } catch (e) {}
+  document.querySelectorAll(`.trial button[data-row="${row}"]`).forEach(b => b.classList.toggle("on", b.dataset.k === k));
+}
 (function trial() {
-  const q = new URLSearchParams(location.search).get("look");
-  let k = q; if (!k) try { k = localStorage.getItem("jt-look"); } catch (e) {}
+  const q = new URLSearchParams(location.search);
+  document.documentElement.dataset.look = "f";
   const box = document.createElement("div"); box.className = "trial";
-  box.innerHTML = `<span>Look</span>` + Object.entries(LOOKS).map(([k, v]) => `<button data-k="${k}">${v}</button>`).join("");
-  box.onclick = e => { const b = e.target.closest("button"); if (b) setLook(b.dataset.k); };
-  if (new URLSearchParams(location.search).get("trial") !== "off") document.body.appendChild(box);
-  setLook(LOOKS[k] ? k : "e");
+  box.innerHTML = Object.entries(TRIAL).map(([row, t]) => `<div class="trow"><span>${t.label}</span>${Object.entries(t.opts).map(([k, v]) => `<button data-row="${row}" data-k="${k}">${v}</button>`).join("")}</div>`).join("");
+  box.onclick = e => { const b = e.target.closest("button"); if (b) setTrial(b.dataset.row, b.dataset.k); };
+  if (q.get("trial") !== "off") document.body.appendChild(box);
+  for (const [row, t] of Object.entries(TRIAL)) {
+    let k = q.get(row); if (!k) try { k = localStorage.getItem("jt-" + row); } catch (e) {}
+    setTrial(row, t.opts[k] ? k : Object.keys(t.opts)[0]);
+  }
 })();
 render();
