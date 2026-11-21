@@ -405,3 +405,41 @@ label.drop { cursor: pointer; }
 }
 [hidden] { display: none !important; }
 .tl-cover { text-decoration: none; }
+
+/* ---------- footer: Back to top beside Dark mode ---------- */
+.foot-links { display: flex; gap: 26px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.foot-links .mode-btn { margin: 0; min-height: 44px; }
+
+/* ---------- route styles on the Map page (trial) ---------- */
+.route-style { margin-top: 10px; }
+.map-and-list.has-list { display: grid; grid-template-columns: 1fr 260px; gap: 22px; align-items: start; }
+.route-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 470px; overflow: auto; border-top: 1px solid var(--line); }
+.route-list a { display: flex; flex-direction: column; padding: 8px 10px; text-decoration: none; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
+.route-list a b { font: 400 19px/1.15 var(--serif); }
+.route-list a small { color: var(--muted); font-size: 12px; }
+.route-list a:hover, .route-list a.on, .route-list a.hi { background: var(--accent-soft); border-left-color: var(--pin); }
+.routes-faint .worldmap .route { opacity: .22; }
+.routes-faint.hovering .worldmap .route:not(.hi), .routes-faint.has-on .worldmap .route:not(.chosen):not(.hi) { opacity: .1; }
+.routes-faint .worldmap .route.hi, .routes-faint .worldmap .route.chosen { opacity: 1; stroke-width: 2.6; stroke-dasharray: none; }
+.routes-year .worldmap .route, .routes-pick .worldmap .route { opacity: 1; stroke-width: 2.2; }
+
+/* ---------- firsts, surprise me (trial) ---------- */
+.firsts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 24px; }
+.firsts li { display: flex; flex-direction: column; gap: 2px; }
+.firsts a { font: 400 24px/1.15 var(--serif); text-decoration: none; }
+.firsts a:hover { color: var(--accent); }
+.firsts small { color: var(--muted); }
+.nav .surprise { margin-top: 2px; }
+
+/* ---------- printing a trip or post: just the words, photos and map (trial) ---------- */
+@media print {
+  .side, .foot, .comments, .post-nav, .filters, .more, .skip, .scrim, .route-list { display: none !important; }
+  .shell { display: block; background: none; }
+  body { background: #fff; font-size: 11pt; }
+  .wrap { max-width: none; padding: 0; }
+  .trip-card, .post-tile, .post-card, .fact, .chart-sec, .tracker, .ctile { box-shadow: none; break-inside: avoid; }
+  .inline, .gallery .photo, .trip-map, .big-map { break-inside: avoid; }
+  .hero { margin: 0; }
+  a { text-decoration: none; }
+}
+@media (max-width: 1100px) { .map-and-list.has-list { grid-template-columns: 1fr; } .route-list { max-height: 300px; } }

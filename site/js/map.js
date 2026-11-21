@@ -85,7 +85,8 @@ function worldMap(pins = [], opts = {}) {
   }
   // routes (trial extra, 21 Nov): each a list of [lat, lon] stops, drawn along great circles (the way a plane flies)
   let routesSvg = "";
-  for (const stops of opts.routes || []) {
+  for (const route of opts.routes || []) {   // a list of stops, or {stops, id, title}
+    const stops = Array.isArray(route) ? route : route.stops;
     let d = "";
     for (let i = 0; i < stops.length - 1; i++) {
       const pts = greatCircle(stops[i], stops[i + 1], 40);
@@ -96,7 +97,7 @@ function worldMap(pins = [], opts = {}) {
         last = lo;
       }
     }
-    if (d) routesSvg += `<path class="route" d="${d}"/>`;
+    if (d) routesSvg += `<path class="route"${route.id ? ` data-trip="${escMap(route.id)}"` : ""} d="${d}">${route.title ? `<title>${escMap(route.title)}</title>` : ""}</path>`;
   }
   let pinsSvg = routesSvg ? `<g class="routes">${routesSvg}</g>` : "";
   for (const p of pins) {

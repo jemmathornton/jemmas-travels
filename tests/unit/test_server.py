@@ -54,6 +54,13 @@ class Saving(unittest.TestCase):
         post = next(p for p in data_js(self.box)["posts"] if p["trip"] == "paris-2026" and p["slug"] == "03")
         self.assertEqual(post["title"], "Harbour day")
 
+    def test_cover_from_photo_1(self):
+        status, out = self.serve.save_post({"trip": "chile-2026", "title": "Andes", "text": "x", "cover": True,
+                                            "photos": [{"name": "a.jpg", "data": photo_b64(gps=False)}]})
+        self.assertEqual(status, 200, out)
+        t = next(t for t in json.loads(self.box.read("data/trips.json"))["trips"] if t["id"] == "chile-2026")
+        self.assertEqual(t["cover"], f"{out['slug']}-1.jpg")
+
     def test_new_trip(self):
         status, out = self.serve.save_post({"trip": "", "newTrip": {"title": "Lake & Hills", "from": "2027-05", "to": "2027-06", "countries": ["IT", "FR"]},
                                             "title": "Arrival", "text": "Hello.", "photos": []})

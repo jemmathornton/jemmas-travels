@@ -79,6 +79,8 @@ def problems(root=ROOT):
         for c in t.get("countries", []):
             if c not in countries:
                 out.append(f"trips.json: {tid} country {c} isn’t in countries.json")
+        if t.get("cover") and not (root / "site" / "photos" / str(tid) / t["cover"]).exists():
+            out.append(f"trips.json: {tid} cover {t['cover']} isn’t in site/photos/{tid}/")
         for p in t.get("places", []) or []:
             if not (isinstance(p, list) and len(p) == 3 and isinstance(p[0], str) and -90 <= p[1] <= 90 and -180 <= p[2] <= 180):
                 out.append(f"trips.json: {tid} place {p!r} should be [name, lat, lon]")

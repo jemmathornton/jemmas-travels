@@ -7,7 +7,7 @@ Only this computer can reach it (it listens on 127.0.0.1). The site's pages are 
     GET  /api/ping   {"ok": true}: the Write page asks this to know it can save
     POST /api/post   a new post, as JSON:
          {trip: "<id>" | "", newTrip: {title, from, to, countries: [codes]} (when trip is ""),
-          title, days | dates, place, text, photos: [{name, data: "<base64>"}]}
+          title, days | dates, place, text, photos: [{name, data: "<base64>"}], cover: true (photo 1 becomes the trip's cover)}
          Saves data/posts/<trip>/<nn>.md and the photos as site/photos/<trip>/<nn>-<k>.jpg, checks the data and
          rebuilds the site. Replies {ok, url} or {ok: false, problems: [...]} (and then nothing is kept).
 POST needs the header "X-Travels: 1", which only the site itself sends, so a page from anywhere else can't write.
@@ -146,6 +146,9 @@ def save_post(body):
         written.append(md)
         if new_trip:
             trips.append(new_trip)
+        if body.get("cover") is True and names:   # "use photo 1 as the trip's cover picture"
+            next(t for t in trips if t["id"] == trip)["cover"] = names[0]
+        if new_trip or (body.get("cover") is True and names):
             trips_file.write_text(dump_trips(trips_doc), encoding="utf-8")
         found = check_data.problems(ROOT)
         if found:

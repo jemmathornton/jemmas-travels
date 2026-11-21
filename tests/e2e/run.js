@@ -413,6 +413,45 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
+  test('routes three ways: all faint with one picked, one year at a time, pick a trip', async () => {
+    const page = await open({ hash: '#/map/routes' });
+    const n = () => page.evaluate(() => document.querySelectorAll('.big-map .route').length);
+    eq(await n(), await page.evaluate(() => TRAVELS.trips.length), 'A shows every route');
+    await go(page, '#/map/routes/faint/japan-2024');
+    eq(await page.evaluate(() => [...document.querySelectorAll('.route.chosen')].map(r => r.dataset.trip)), ['japan-2024'], 'chosen trip forward');
+    await go(page, '#/map/routes/year');
+    eq(await n(), await page.evaluate(() => TRAVELS.trips.filter(t => t.from.startsWith('2026')).length), 'B: newest year only');
+    await go(page, '#/map/routes/year/2012'); eq(await n(), 1, 'B: 2012');
+    await go(page, '#/map/routes/pick'); eq(await n(), 0, 'C: nothing until picked');
+    await go(page, '#/map/routes/pick/india-2012'); eq(await n(), 1, 'C: one route');
+    await go(page, '#/map/routes/year/1999'); eq(await n(), await page.evaluate(() => TRAVELS.trips.filter(t => t.from.startsWith('2026')).length), 'unknown year falls back to newest');
+    await page.close2();
+  });
+
+  test('this time of year, firsts, surprise me', async () => {
+    const page = await open();
+    const nov = await page.evaluate(() => { const d = document.createElement('div'); d.innerHTML = thisTimeOfYear(new Date(2026, 10, 21)); return [...d.querySelectorAll('.trip-card h3')].map(h => h.textContent); });
+    eq(nov, ['Brazil and Argentina'], 'November 2026');
+    eq(await page.evaluate(() => thisTimeOfYear(new Date(2026, 0, 5))), '', 'January: nothing');
+    await go(page, '#/stats');
+    const f = await page.evaluate(() => [...document.querySelectorAll('.firsts li')].map(li => li.querySelector('.fk').textContent + ': ' + li.querySelector('a').textContent));
+    eq(f, ['First time in Asia: India', 'First time in North America: Canada and Boston', 'First time in Europe: France and Spain', 'First time in South America: Brazil and Argentina']);
+    await go(page, '#/surprise'); await page.waitForTimeout(150);
+    ok(/^#\/trip\//.test(await page.evaluate(() => location.hash)), 'surprise lands on a trip or post');
+    await page.close2();
+  });
+
+  test('Back to top sits beside Dark mode at the bottom and goes to the top', async () => {
+    const page = await open({ hash: '#/timeline', height: 700 });
+    const r = await page.evaluate(() => { const a = document.querySelector('#topBtn').getBoundingClientRect(), b = document.querySelector('#modeBtn').getBoundingClientRect(); return Math.abs(a.top - b.top) < 4 && a.right < b.left; });
+    ok(r, 'buttons side by side');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.click('#topBtn'); await page.waitForTimeout(900);
+    eq(await page.evaluate(() => Math.round(scrollY)), 0, 'scrolled to the top');
+    eq(await page.evaluate(() => document.activeElement.id), 'view', 'focus at the top');
+    await page.close2();
+  });
+
   test('only one filter id per map, even with two maps on a page', async () => {
     const page = await open({ hash: '#/trip/japan-2024' });
     const ids = await page.evaluate(() => [...document.querySelectorAll('filter')].map(f => f.id));

@@ -1,3 +1,4 @@
+// (21 Nov: she picked A, now site/icon.svg; the options folder is gone, the picture stays in for-jemma/)
 // Picture of the tab icon options (site/icon-options/*.svg) in a pretend browser tab, light and dark, at real sizes.
 // node tests/icon_sheet.js <out.png>
 const path = require('path'), fs = require('fs');

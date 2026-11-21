@@ -123,7 +123,7 @@ function photo(trip, file, i, cls = "", alt = "") {
   return `<figure class="photo empty ${cls}" style="--h:${tint(trip + i)}"><span>${icon("camera")}Photo to come</span></figure>`;
 }
 function cover(t) {
-  const first = postsOf(t.id).flatMap(p => p.photos).find(Boolean);
+  const first = t.cover || postsOf(t.id).flatMap(p => p.photos).find(Boolean);
   return photo(t.id, first, 0, "cover");
 }
 function chips(codes) { return codes.map(c => `<a class="chip" href="#/country/${c}">${esc(country(c).name)}</a>`).join(""); }
@@ -177,6 +177,18 @@ function comments() {
 }
 
 // ---------- pages ----------
+// "This time of year" (21 Nov, instead of "on this day" until posts have dates): trips in this month in other years
+function thisTimeOfYear(now = new Date()) {
+  const m = now.getMonth() + 1, y = now.getFullYear();
+  const ts = TRIPS.filter(t => tripMonths(t).some(([ty, tm]) => tm === m && ty !== y));
+  if (!ts.length) return "";
+  return `<section class="sec"><h2 class="sec-h">This time of year <span class="trial-tag">trial</span></h2><p class="note">Trips in ${MONTHS[m - 1]} in other years.</p><div class="trip-grid">${ts.map(tripCard).join("")}</div></section>`;
+}
+function surprisePost() { // a random post that isn't a placeholder, or a random trip if there are none yet
+  const real = D.posts.filter(p => !p.placeholder);
+  if (real.length) { const p = real[Math.floor(Math.random() * real.length)]; return `#/trip/${p.trip}/${p.slug}`; }
+  return `#/trip/${TRIPS[Math.floor(Math.random() * TRIPS.length)].id}`;
+}
 function pageHome() {
   const latest = TRIPS.flatMap(t => postsOf(t.id).slice().reverse()).slice(0, 3);   // newest trip's newest posts first
   const continents = new Set(VISITED.map(c => country(c).continent));
@@ -187,6 +199,7 @@ function pageHome() {
       <p class="tagline"><span class="ph-text">A line about these travels, in your own words.</span> <span class="ph">Placeholder</span></p></div>
     </section>
     ${statTiles([[TRIPS.length, "trips", "#/trips"], [VISITED.length, "countries", "#/countries"], [continents.size, "continents", "#/countries"], [YEARS.length, "years travelled", "#/stats"]])}
+    ${thisTimeOfYear()}
     ${latest.length ? `<section class="sec"><h2 class="sec-h">Latest posts</h2><div class="post-tiles">${latest.map(postTile).join("")}</div></section>` : ""}
     <section class="sec"><h2 class="sec-h">Trips by year</h2>${yearGroups(TRIPS, "h3")}</section>`;
 }
@@ -253,20 +266,55 @@ function pagePost(id, slug) {
         ${next ? `<a class="next" href="#/trip/${id}/${next.slug}"><span><small>${esc(dayLabel(next))}</small>${ph(next.title)}</span>${icon("chevron-right")}</a>` : "<span></span>"}</nav>
     </article>${comments()}`;
 }
-function pageMap(view) {
+// Routes, three ways to try (21 Nov, her note: every route at once is a bit much):
+//   faint  all routes pale; point at a trip in the list (or its line) to bring it forward
+//   year   one year at a time (newest first), year buttons above the map
+//   pick   no lines until a trip is chosen from the list; then just that one
+const ROUTE_STYLES = { faint: "A · All, faint", year: "B · One year at a time", pick: "C · Pick a trip" };
+function pageMap(view, style, which) {
   const byCont = {};
   for (const c of VISITED) (byCont[country(c).continent] ||= []).push(c);
   const routes = view === "routes";
+  style = ROUTE_STYLES[style] ? style : "faint";
   const tabs = `<div class="filters"><a class="fchip ${routes ? "" : "on"}" href="#/map">Countries</a><a class="fchip ${routes ? "on" : ""}" href="#/map/routes">Routes from home <span class="trial-tag">trial</span></a></div>`;
   const home = HOME_AT(), homePin = { lat: home[0], lon: home[1], label: D.homeTown || "Home", title: `Home: ${D.homeTown || country(D.home).name}` };
-  return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`, tabs) +
-    `<div class="big-map">${worldMap(routes ? [homePin, ...placePins(TRIPS)] : placePins(TRIPS), { ...mapOpts(VISITED), routes: routes ? TRIPS.map(tripRoute) : [], aria: routes ? "Every trip’s route from home" : "Every country visited" })}</div>
-    <p class="note map-note">${icon("info")}${routes ? `Each trip drawn from ${esc(D.homeTown || "home")} to the places named on it (or the middle of each country) and back, the shortest way round the world.` : "Countries visited are coloured in; pins are places named on a trip."} Map: Natural Earth.</p>
-    <h2 class="sr-only">By continent</h2><div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
+  let shown = TRIPS, extra = "", note = "Countries visited are coloured in; pins are places named on a trip.";
+  if (routes) {
+    const styleRow = `<div class="filters route-style" aria-label="Ways to show routes">${Object.entries(ROUTE_STYLES).map(([k, v]) => `<a class="fchip ${k === style ? "on" : ""}" href="#/map/routes/${k}">${v}</a>`).join("")}</div>`;
+    if (style === "year") {
+      const y = YEARS.includes(which) ? which : YEARS[0];
+      shown = TRIPS.filter(t => year(t) === y);
+      extra = styleRow + `<div class="filters">${YEARS.map(x => `<a class="fchip ${x === y ? "on" : ""}" href="#/map/routes/year/${x}">${x}</a>`).join("")}</div>`;
+    } else if (style === "pick") {
+      const t = tripById[which];
+      shown = t ? [t] : [];
+      extra = styleRow;
+    } else extra = styleRow;
+    note = style === "pick" && !shown.length ? "Choose a trip below to see its route." : `Trips drawn from ${esc(D.homeTown || "home")} to the places named on them (or the middle of each country) and back, the shortest way round the world.`;
+  }
+  const routeList = routes && style !== "year" ? `<ul class="route-list">${TRIPS.map(t => `<li><a href="#/map/routes/${style === "pick" ? "pick" : "faint"}/${t.id}" data-trip="${t.id}" class="${which === t.id ? "on" : ""}"><b>${esc(t.title)}</b><small>${esc(fmtRange(t))} · about ${(Math.round(tripKm(t) / 100) * 100).toLocaleString("en-GB")} km</small></a></li>`).join("")}</ul>` : "";
+  const map = worldMap(routes ? [homePin, ...placePins(shown)] : placePins(TRIPS), { ...mapOpts(VISITED),
+    routes: routes ? shown.map(t => ({ stops: tripRoute(t), id: t.id, title: `${t.title} · ${fmtRange(t)}` })) : [], aria: routes ? "Trips’ routes from home" : "Every country visited" });
+  return head("Map", `${plural(VISITED.length, "country", "countries")} · ${plural(TRIPS.length, "trip")}`, tabs + extra) +
+    `<div class="map-and-list${routeList ? " has-list" : ""}${routes ? " routes-" + style : ""}${which && style === "faint" ? " has-on" : ""}"><div class="big-map">${map}</div>${routeList}</div>
+    <p class="note map-note">${icon("info")}${note} Map: Natural Earth.</p>
+    ${routes ? "" : `<h2 class="sr-only">By continent</h2><div class="cont-cols">${Object.entries(byCont).map(([k, cs]) => `<section><h3>${esc(k)}</h3><ul>${cs.map(c => {
       const ts = TRIPS.filter(t => t.countries.includes(c));
       return `<li><a href="#/country/${c}">${esc(country(c).name)}</a><span>${ts.map(t => year(t)).join(", ")}</span></li>`;
-    }).join("")}</ul></section>`).join("")}</div>`;
+    }).join("")}</ul></section>`).join("")}</div>`}`;
 }
+function markChosenRoute() {
+  const on = document.querySelector(".routes-faint .route-list a.on"); if (!on) return;
+  document.querySelectorAll(`.routes-faint [data-trip="${CSS.escape(on.dataset.trip)}"]`).forEach(x => x.classList.add("chosen"));
+}
+// pointing at a trip in the list (or its line) brings that route forward ("All, faint")
+document.addEventListener("pointerover", e => {
+  const el = e.target.closest?.("[data-trip]"); const box = document.querySelector(".routes-faint"); if (!box) return;
+  box.querySelectorAll(".hi").forEach(x => x.classList.remove("hi"));
+  if (el) box.querySelectorAll(`[data-trip="${CSS.escape(el.dataset.trip)}"]`).forEach(x => x.classList.add("hi"));
+  box.classList.toggle("hovering", !!el);
+});
+document.addEventListener("focusin", e => { const el = e.target.closest?.(".route-list [data-trip]"); if (el) el.dispatchEvent(new PointerEvent("pointerover", { bubbles: true })); });
 function pageCountries() {
   const pct = VISITED.length / TOTAL_COUNTRIES;
   const conts = Object.entries(D.continentTotals).map(([k, n]) => [k, VISITED.filter(c => country(c).continent === k).length, n]);
@@ -290,6 +338,17 @@ function pageCountry(code) {
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
     `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins), labels: true, aria: `Map of ${k.name}` })}</div>
     <h2 class="sr-only">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div>`;
+}
+function firsts() { // the first trip to each continent and to each country, oldest first (worked out from the trips)
+  const seen = new Set(), rows = [];
+  for (const t of [...TRIPS].reverse()) for (const c of t.countries) {
+    const k = country(c).continent;
+    if (c === D.home || !k || seen.has(k)) continue;
+    seen.add(k); rows.push([k, t]);
+  }
+  if (!rows.length) return "";
+  return `<section class="sec chart-sec"><h2 class="sec-h">Firsts <span class="trial-tag">trial</span></h2><ol class="firsts">${rows.map(([k, t]) =>
+    `<li><span class="fk">First time in ${esc(k)}</span><a href="#/trip/${t.id}">${esc(t.title)}</a><small>${esc(fmtRange(t))}</small></li>`).join("")}</ol></section>`;
 }
 function pageStats() {
   if (!TRIPS.length) return head("Stats", "For fun") + `<p class="note">No trips yet.</p>`;
@@ -323,6 +382,7 @@ function pageStats() {
       ${fact("Written so far", plural(posts, "post"), `${plural(days, "day")} · ${plural(photos, "photo")}`)}
       ${(() => { const total = TRIPS.reduce((n, t) => n + tripKm(t), 0); return fact(`Distance travelled <span class="trial-tag">trial</span>`, `${(Math.round(total / 1000) * 1000).toLocaleString("en-GB")} km`, `about ${(total / 40075).toFixed(1)} times round the world, as the crow flies from ${esc(D.homeTown || "home")}`); })()}
     </div>
+    ${firsts()}
     <section class="sec chart-sec"><h2 class="sec-h">Trips each year</h2>
       <div class="bars" role="img" aria-label="Trips each year">${perYear.map(([y, n]) => `<div class="bar" title="${y}: ${plural(n, "trip")}"><span class="bv">${n || ""}</span><i style="height:${n / maxY * 100}%"></i><span class="bl">${String(y).slice(2)}</span></div>`).join("")}</div>
       <p class="note">Years from ${span[0]} to ${span[span.length - 1]}; labels are the last two digits. A trip counts in the year it started.</p></section>
@@ -351,6 +411,7 @@ function pageWrite() {
       <p class="note">To put a photo in the middle of your words, write its marker on a line of its own, e.g. <code>[photo 2 right]</code>, <code>[photos 3-5]</code>, <code>[photos 1-6 mosaic]</code> (all of them: for-jemma/post-templates.md). Photos you don’t place go at the end.</p>
       <label class="drop" id="drop">${icon("upload")}<b>Drop photos here</b><span>or click to choose · copied and resized for the site; where they were taken is removed</span><input type="file" accept="image/*" multiple hidden id="files"></label>
       <ol class="picked" id="picked"></ol>
+      <label class="tick"><input type="checkbox" name="cover"> Use photo 1 as the trip’s cover picture</label>
       <div class="actions"><button class="primary" id="saveBtn" type="submit">${icon("pen")}Save post</button><span class="note" id="wMsg">Saved posts go online the next time the site is published.</span></div>
     </form>`;
 }
@@ -376,7 +437,7 @@ function wireWrite() {
     e.preventDefault();
     const msg = $("#wMsg"), btn = $("#saveBtn");
     const v = n => (f.elements[n]?.value || "").trim();
-    const body = { trip: f.trip.value, title: v("title"), days: v("days"), dates: v("dates"), place: v("place"), text: f.text.value };
+    const body = { trip: f.trip.value, title: v("title"), days: v("days"), dates: v("dates"), place: v("place"), text: f.text.value, cover: f.cover.checked };
     if (!body.trip) body.newTrip = { title: v("ntitle"), from: v("nfrom"), to: v("nto") || v("nfrom"), countries: [...f.querySelectorAll("input[name=nc]:checked")].map(x => x.value) };
     if (!body.title) { msg.textContent = "The post needs a title."; f.title.focus(); return; }
     btn.disabled = true; msg.textContent = picked.length ? `Getting ${plural(picked.length, "photo")} ready…` : "Saving…";
@@ -428,7 +489,7 @@ function pageSearch(q) {
 function nav(route) {
   const item = (href, ic, label, on, n) => `<a href="${href}" class="${on ? "on" : ""}">${icon(ic)}<span>${label}</span>${n != null ? `<small>${n}</small>` : ""}</a>`;
   const r = route[0] || "";
-  return `<div class="nav-main">${item("#/", "home", "Home", r === "")}${item("#/trips", "plane", "Trips", r === "trips" || r === "trip" || r === "year", TRIPS.length)}${item("#/map", "map", "Map", r === "map")}${item("#/countries", "globe", "Countries", r === "countries" || r === "country", VISITED.length)}${item("#/stats", "chart", "Stats", r === "stats")}${item("#/timeline", "clock", "Timeline", r === "timeline")}${item("#/search", "search", "Search", r === "search")}${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>
+  return `<div class="nav-main">${item("#/", "home", "Home", r === "")}${item("#/trips", "plane", "Trips", r === "trips" || r === "trip" || r === "year", TRIPS.length)}${item("#/map", "map", "Map", r === "map")}${item("#/countries", "globe", "Countries", r === "countries" || r === "country", VISITED.length)}${item("#/stats", "chart", "Stats", r === "stats")}${item("#/timeline", "clock", "Timeline", r === "timeline")}${item("#/search", "search", "Search", r === "search")}<a href="#/surprise" class="surprise">${icon("shuffle")}<span>Surprise me</span></a>${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>
     <div class="nav-years"><div class="nav-h">Years</div>${YEARS.map(y => item(`#/year/${y}`, "calendar", y, r === "year" && route[1] === y, TRIPS.filter(t => year(t) === y).length)).join("")}</div>`;
 }
 function render() {
@@ -439,7 +500,8 @@ function render() {
   else if (r === "trips") html = pageTrips();
   else if (r === "year") html = pageTrips(a);
   else if (r === "trip") html = b ? pagePost(a, b) : pageTrip(a);
-  else if (r === "map") html = a && a !== "routes" ? notFound() : pageMap(a);
+  else if (r === "map") html = a && a !== "routes" ? notFound() : pageMap(a, b, route[3]);
+  else if (r === "surprise") { location.replace(surprisePost()); return; }
   else if (r === "timeline") html = pageTimeline();
   else if (r === "search") html = pageSearch(a);
   else if (r === "countries") html = pageCountries();
@@ -454,10 +516,13 @@ function render() {
   if (render.done) $("#view").focus({ preventScroll: true });   // after a click, keyboard and screen readers start at the new page
   render.done = true;
   if (r === "write") wireWrite();
+  if (r === "map") markChosenRoute();
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
-$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Map: Natural Earth · Fonts: Instrument Serif and Manrope · Icons by Lucide</span><button class="mode-btn" id="modeBtn" type="button"></button>`;
+$("#foot").innerHTML = `<b>Jemma’s Travels</b><span>No cookies, no tracking, no ads.</span><span>Map: Natural Earth · Fonts: Instrument Serif and Manrope · Icons by Lucide</span><div class="foot-links"><button class="mode-btn" id="topBtn" type="button">${icon("arrow-up")}Back to top</button><button class="mode-btn" id="modeBtn" type="button"></button></div>`;
+// Back to top beside Dark mode (her ask, 21 Nov, as on Jemma’s Journals): to the top, and keyboard focus with it
+$("#topBtn").onclick = () => { window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); $("#view").focus({ preventScroll: true }); };
 // dark mode: light unless the footer button is pressed; remembered on this device (her pick, 21 Nov, like Jemma’s Journals)
 function setMode(m) {
   document.documentElement.dataset.mode = m;

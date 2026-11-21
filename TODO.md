@@ -1,8 +1,8 @@
 # To do / to decide
 
 ## For Jemma to choose
-- **Tab icon:** A Globe, B J on a globe, C Stamp or D Map pin (`for-jemma/tab-icon-options.png`). A is in use for now.
-- **Trial extras:** keep or drop each: routes map, trip route lines, distance travelled, Timeline, Search (`for-jemma/extras-1-trial.jpg`).
+- **Routes:** A all faint, B one year at a time, or C pick a trip.
+- **Trial extras:** she likes them all (21 Nov); take the “trial” tags off once the route style is picked.
 - **Trips across New Year:** year it started (now) or both years. She’ll come back to it.
 - **Exact dates** for trips (start and end days) if you want “days away” stats; months are enough for now.
 - **Tagline** on the home page: a line in your own words (or none).
