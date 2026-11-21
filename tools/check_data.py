@@ -1,7 +1,7 @@
 """Check data/ for mistakes before building: python -X utf8 tools/check_data.py  (prints problems; exit 1 if any).
 
 Checks trips (ids, dates, countries, places), countries (names, continents, map codes) and posts (header, days or
-dates, photos, photo markers pointing at photos that exist). Used by the tests too (problems() returns the list).
+dates, photos, photo markers pointing at photos that exist) and that no photo in site/photos/ has location data. Used by the tests too (problems() returns the list).
 """
 import json
 import os
@@ -31,6 +31,44 @@ def read_post(path):
             meta[k.strip().lower()] = v.strip()
     paras = [p.strip() for p in re.split(r"\n\s*\n", m.group(2).strip()) if p.strip()]
     return meta, paras
+
+
+PHOTO_TYPES = (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".heic", ".heif", ".gif")
+XMP_GPS = re.compile(rb"exif:GPS|GPS(Latitude|Longitude|Altitude|Coordinates)", re.I)
+
+
+def photo_location_problems(root=ROOT):
+    """Photos in site/photos/ must not say where they were taken (the repo is public): no EXIF GPS, no GPS in XMP.
+
+    The Write page's server strips this already; this catches a photo copied in any other way."""
+    photos = Path(root) / "site" / "photos"
+    files = sorted(p for p in photos.rglob("*") if p.is_file() and p.suffix.lower() in PHOTO_TYPES) if photos.is_dir() else []
+    if not files:
+        return []
+    try:
+        from PIL import Image
+    except ImportError:
+        return ["site/photos: can’t check photos for location data (Pillow isn’t installed)"]
+    out = []
+    for f in files:
+        where = f"site/photos/{f.relative_to(photos).as_posix()}"
+        raw = f.read_bytes()
+        if XMP_GPS.search(raw):
+            out.append(f"{where}: has location data (GPS in its XMP); save it again without it (the Write page does this)")
+            continue
+        try:
+            with Image.open(f) as im:
+                exif = im.getexif()
+                gps = 0x8825 in exif and (exif.get_ifd(0x8825) or exif.get(0x8825))
+                xmp = im.info.get("xmp") or im.info.get("XML:com.adobe.xmp") or b""
+        except Exception as e:  # noqa: BLE001 - an unreadable photo is a problem too
+            out.append(f"{where}: can’t be read as a picture ({e})")
+            continue
+        if isinstance(xmp, str):
+            xmp = xmp.encode("utf-8", "replace")
+        if gps or XMP_GPS.search(xmp):
+            out.append(f"{where}: has location data (EXIF GPS); save it again without it (the Write page does this)")
+    return out
 
 
 def problems(root=ROOT):
@@ -132,6 +170,7 @@ def problems(root=ROOT):
                         a = int(m.group(2)); b = int(m.group(3) or a)
                         if b < a or a < 1 or b > count:
                             out.append(f"{where}: {para[:40]!r} asks for photo {a}{'–' + str(b) if b != a else ''} but the post has {count}")
+    out += photo_location_problems(root)
     return out
 
 

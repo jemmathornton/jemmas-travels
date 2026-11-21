@@ -106,6 +106,41 @@ class CheckData(unittest.TestCase):
         self.assertTrue(any("header" in p for p in self.problems()))
 
 
+    # ---- photos must not say where they were taken (round-2 review: the repo is public; catches photos copied in by hand)
+    def photo(self, name, exif_gps=False, xmp_gps=False):
+        from PIL import Image
+        im = Image.new("RGB", (40, 30), (90, 140, 170)); exif = Image.Exif()
+        if exif_gps:
+            exif[0x8825] = {1: "N", 2: (52.0, 28.0, 48.0), 3: "W", 4: (1.0, 53.0, 24.0)}
+        kw = {"exif": exif}
+        if xmp_gps:
+            kw["xmp"] = b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:exif="http://ns.adobe.com/exif/1.0/" exif:GPSLatitude="52,28.8N" exif:GPSLongitude="1,53.4W"/></rdf:RDF></x:xmpmeta>'
+        path = self.box.path("site", "photos", "paris-2026", name)
+        im.save(path, "JPEG", **kw)
+        return path
+
+    def test_photo_with_exif_gps_is_refused(self):
+        self.photo("a.jpg", exif_gps=True)
+        self.assertTrue(any("a.jpg" in p and "location" in p for p in self.problems()), self.problems())
+
+    def test_photo_with_xmp_gps_is_refused(self):
+        self.photo("b.jpg", xmp_gps=True)
+        self.assertTrue(any("b.jpg" in p and "location" in p for p in self.problems()), self.problems())
+
+    def test_photo_without_location_is_fine(self):
+        self.photo("a.jpg")
+        self.assertEqual(self.problems(), [])
+
+    def test_build_refuses_photo_with_location(self):
+        self.photo("c.jpg", exif_gps=True)
+        r = run_tool(self.box, "build")
+        self.assertNotEqual(r.returncode, 0, "the build should refuse a photo that says where it was taken")
+
+    def test_her_photos_have_no_location(self):
+        """Her real site/photos/ (checked in place, read only)."""
+        self.assertEqual(self.check.photo_location_problems(REAL), [])
+
+
 class Build(unittest.TestCase):
     def test_builds_made_up_trips(self):
         with Sandbox() as box:

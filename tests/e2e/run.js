@@ -9,7 +9,7 @@ const [SITE, SUITE, EXPECT_FILE, FILTER] = process.argv.slice(2);
 const EXPECT = EXPECT_FILE && fs.existsSync(EXPECT_FILE) ? JSON.parse(fs.readFileSync(EXPECT_FILE, 'utf8')) : {};
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const LOCAL = 'http://localhost:8099/', ONLINE = 'https://travels.test/';
-const WIDTHS = [[1600, 1000, false], [1280, 800, false], [1024, 768, false], [390, 844, true]];
+const WIDTHS = [[1600, 1000, false], [1280, 800, false], [1024, 768, false], [950, 800, false], [390, 844, true]];   // 950: the sidebar beside a narrow page (round-2 review)
 
 let browser;
 const TESTS = [];
@@ -60,7 +60,7 @@ const shown = page => page.evaluate(() => ({
 
 // ---------------------------------------------------------------- her site
 if (SUITE === 'her') {
-  test('every page opens without errors or sideways scrolling, at four widths', async () => {
+  test('every page opens without errors or sideways scrolling, at five widths', async () => {
     const bad = [];
     for (const [w, h, phone] of WIDTHS) {
       const page = await open({ width: w, height: h, phone });
@@ -113,6 +113,9 @@ if (SUITE === 'her') {
         continents: [fact('continents'), String(new Set(visited.map(c => D.countries[c].continent)).size)] };
     });
     for (const [k, [got, want]] of Object.entries(r)) eq(got, want, k);
+    const written = await page.evaluate(() => { const f = [...document.querySelectorAll('.fact')].find(f => f.querySelector('.fk').textContent.trim() === 'Written so far');
+      const n = TRAVELS.posts.filter(p => !p.placeholder).length; return [f.querySelector('b').textContent.trim(), `${n} post${n === 1 ? '' : 's'}`]; });
+    eq(written[0], written[1], 'written so far counts only her real posts (not placeholders):');
     await go(page, '#/countries');
     const ring = await page.evaluate(() => document.querySelector('.ring b').textContent);
     eq(ring, r.countries[1], 'tracker ring');
@@ -173,7 +176,7 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
-  test('phone menu slides over the page and closes by its button, outside, Esc and a link', async () => {
+  test('phone menu slides over the page and closes outside, by Esc and a link', async () => {
     const page = await open({ width: 390, height: 844, phone: true });
     const top = () => page.evaluate(() => document.querySelector('#view').getBoundingClientRect().top);
     const isOpen = () => page.evaluate(() => document.body.classList.contains('menu-open'));
@@ -184,7 +187,7 @@ if (SUITE === 'her') {
     ok(await isOpen(), 'did not open'); eq(await top(), t0, 'page moved when the menu opened:');
     const navIn = await page.evaluate(() => document.querySelector('#side').getBoundingClientRect().left >= -1);
     ok(navIn, 'menu did not slide in');
-    await page.focus('#menuBtn'); await page.keyboard.press('Enter'); await page.waitForTimeout(300); ok(!(await isOpen()), 'the button did not close it');
+    ok(await page.evaluate(() => document.getElementById('topbar').inert), 'while open the bar (under the drawer) should be inert (family rules)'); await page.keyboard.press('Escape'); await page.waitForTimeout(300); ok(!(await isOpen()), 'Esc did not close it');
     await page.tap('#menuBtn'); await page.waitForTimeout(300); await page.tap('.scrim', { position: { x: 370, y: 600 } }); await page.waitForTimeout(300);
     ok(!(await isOpen()), 'tapping outside did not close it');
     await page.tap('#menuBtn'); await page.waitForTimeout(300); await page.keyboard.press('Escape'); ok(!(await isOpen()), 'Esc did not close it');
@@ -242,12 +245,14 @@ if (SUITE === 'her') {
             italic: getComputedStyle(f.querySelector('.foot-name')).fontStyle, line1: ps[0].textContent, credits: crs.map(c => c.textContent),
             capitals: crs.every(c => /^[A-Z]/.test(c.textContent)), rows: new Set(crs.map(c => Math.round(c.getBoundingClientRect().top))).size,
             size: getComputedStyle(ps[0]).fontSize, level: Math.abs(a.top - b.top) < 2 && a.height >= 44 && b.height >= 44 && a.right < b.left,
-            sideways: document.documentElement.scrollWidth > innerWidth };
+            sideways: document.documentElement.scrollWidth > innerWidth,
+            seps: [...ps[1].querySelectorAll('.sep')].every(d => d.textContent === '\u00a0·' && d.previousElementSibling.classList.contains('cr')),
+            balance: /balance/.test(getComputedStyle(ps[1]).textWrap || '') || getComputedStyle(ps[1]).textWrapStyle === 'balance' };
         });
         const want = { footers: 1, order: ['foot-name', 'about-site', 'foot-links'], name: 'Jemma’s Travels', italic: 'normal',
           line1: 'No cookies, no tracking, no ads. Made with plain HTML and CSS, kept on GitHub.',
           credits: ['Photos are my own', 'Country shapes from Natural Earth', 'Fonts: Instrument Serif and Manrope', 'Icons by Lucide'], capitals: true,
-          rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false };
+          rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false, seps: true, balance: true };
         for (const k in want) if (JSON.stringify(r[k]) !== JSON.stringify(want[k])) bad.push(`${h} ${k}: ${JSON.stringify(r[k])}`);
       }
       ok(!bad.length, bad.join('\n'));
@@ -267,6 +272,10 @@ if (SUITE === 'her') {
       return [b.textContent.trim(), !!b.querySelector('svg'), b.getAttribute('aria-controls'), b.getAttribute('aria-expanded'), a.textContent, a.getAttribute('href'),
         getComputedStyle(a.querySelector('em')).fontStyle, b.getBoundingClientRect().right <= a.getBoundingClientRect().left, b.getBoundingClientRect().height >= 44]; });
     eq(r, ['Menu', true, 'side', 'false', 'Jemma’s Travels', '#/', 'italic', true, true]);
+    eq(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar a.brand-bar')).fontSize), '26px', 'name in the bar (the same on every site):');
+    await page.click('#menuBtn'); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(0, 0, 0, 0.45)', 'scrim black at 45%:');
+    await page.keyboard.press('Escape');
     eq(await page.evaluate(() => document.getElementById('side').querySelector('a').textContent.trim()), '← Jemma’s Journals', 'first in the drawer:');
     eq(await page.evaluate(() => !!document.querySelector('.topbar .home-link')), false, 'the Journals link should not be in the bar:');
     await page.click('.topbar a.brand-bar'); await page.waitForTimeout(150);
@@ -291,6 +300,96 @@ if (SUITE === 'her') {
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
     eq(await page.evaluate(() => [document.body.classList.contains('menu-open'), document.getElementById('side').inert]), [false, true], 'after narrowing again:');
     await page.close2();
+  });
+
+  test('family: the drawer opens to the page’s own link (Home if none); while open Tab stays inside; focus back on Menu when crossing 900px', async () => {
+    const page = await open({ width: 390, height: 844, hash: '#/stats' });
+    const act = () => page.evaluate(() => { const a = document.activeElement; return a === document.body ? 'body' : document.getElementById('side').contains(a) ? 'side:' + (a.getAttribute('href') || a.tagName) : (a.id || a.className || a.tagName); });
+    await page.click('#menuBtn'); await page.waitForTimeout(300);
+    eq(await act(), 'side:#/stats', 'opens to the Stats link:');
+    eq(await page.evaluate(() => [document.getElementById('topbar').inert, document.querySelector('.skip').inert, document.getElementById('main').inert]), [true, true, true], 'everything else inert:');
+    const bad = [];
+    for (const key of ['Tab', 'Shift+Tab']) for (let i = 0; i < 30; i++) { await page.keyboard.press(key); const a = await act(); if (!/^side:|^body$/.test(a)) bad.push(`${key} ${i + 1}: ${a}`); }
+    ok(!bad.length, 'Tab left the open drawer: ' + bad.slice(0, 4).join(', '));
+    await page.keyboard.press('Escape');
+    eq(await page.evaluate(() => [document.getElementById('topbar').inert, document.querySelector('.skip').inert, document.getElementById('main').inert]), [false, false, false], 'closed, nothing inert:');
+    await go(page, '#/search'); await page.click('#menuBtn'); await page.waitForTimeout(300);
+    eq(await act(), 'side:#/', 'a page with no link of its own opens to Home:');
+    await page.keyboard.press('Escape');
+    await go(page, '#/trip/japan-2024'); await page.click('#menuBtn'); await page.waitForTimeout(300);
+    eq(await act(), 'side:#/trip/japan-2024', 'a trip opens to its own link:');
+    // open, then wide (focus stays on the sidebar link), then narrow again: focus back on Menu, not lost
+    await page.setViewportSize({ width: 1000, height: 800 }); await page.waitForTimeout(300);
+    ok((await act()).startsWith('side:'), 'wide: focus stays on the sidebar link');
+    await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
+    eq(await act(), 'menuBtn', 'narrow again:');
+    eq(page.errors, [], 'page errors');
+    await page.close2();
+  });
+
+  test('family: the ← Jemma’s Journals link is at least 24px tall; opened as a file it goes to the Journals page, not the C drive', async () => {
+    const page = await open();
+    const h = await page.evaluate(() => document.querySelector('.home-link').getBoundingClientRect().height);
+    ok(h >= 24, 'Journals link is ' + h + 'px tall');
+    eq(await page.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '/', 'served: the shared address');
+    await page.close2();
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const f = await ctx.newPage();
+    await f.goto('file:///' + path.resolve(SITE, 'index.html').split(path.sep).join('/') + '#/');
+    eq(await f.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '../../JemmasJournals/concepts/index.html', 'as a file:');
+    await ctx.close();
+  });
+
+  test('Map page tracker: bars drawn and figures inside the card between 900 and 1100px (round-2 review)', async () => {
+    const bad = [];
+    for (const w of [901, 950, 1000, 1024, 1100, 1280, 899, 860, 390]) {
+      const page = await open({ width: w, height: 800, phone: w < 600, hash: '#/map' });
+      const r = await page.evaluate(() => { const t = document.querySelector('.tracker').getBoundingClientRect();
+        return { tracks: [...document.querySelectorAll('.cbar .track')].map(x => Math.round(x.getBoundingClientRect().width)),
+          out: [...document.querySelectorAll('.cbar .cval')].filter(x => x.getBoundingClientRect().right > t.right + 1).length, sideways: document.documentElement.scrollWidth - innerWidth }; });
+      if (Math.min(...r.tracks) < 60) bad.push(`${w}: bars only ${Math.min(...r.tracks)}px`);
+      if (r.out) bad.push(`${w}: ${r.out} figures stick out of the card`);
+      if (r.sideways > 0) bad.push(`${w}: scrolls sideways by ${r.sideways}px`);
+      await page.close2();
+    }
+    ok(!bad.length, bad.join('\n'));
+  });
+
+  test('Japan’s country page frames all its main islands (Hokkaido, Kyushu, Okinawa); France without French Guiana, the US without Alaska', async () => {
+    const page = await open({ hash: '#/country/JP' });
+    const r = await page.evaluate(() => ({ jp: focusOn(['JP'], [], true), fr: focusOn(['FR'], [], true), us: focusOn(['US'], [], true) }));
+    const inside = ([w, s, e, n], [lat, lon]) => lon >= w && lon <= e && lat >= s && lat <= n;
+    for (const [name, pt] of [['Hokkaido', [43.8, 142.8]], ['Wakkanai', [45.4, 141.7]], ['Kyushu south', [31.1, 130.7]], ['Okinawa', [26.4, 127.8]], ['Tokyo', [35.7, 139.7]]]) ok(inside(r.jp, pt), `${name} is off Japan’s map ${r.jp.map(x => x.toFixed(1))}`);
+    ok(inside(r.fr, [42.2, 9.1]) && !inside(r.fr, [4.0, -53.0]), 'France: Corsica in, French Guiana out ' + r.fr);
+    ok(!inside(r.us, [64.8, -147.7]), 'US: Alaska out ' + r.us);
+    eq(page.errors, []);
+    await page.close2();
+  });
+
+  test('small text 4.5:1 on tinted backgrounds too: month cells, postcard stamps, home banner, highlighted sidebar counts (both modes)', async () => {
+    const bad = [];
+    for (const mode of ['light', 'dark']) {
+      const page = await open({ hash: '#/' });
+      await page.evaluate(m => { localStorage.setItem('jj-mode', m); }, mode); await page.reload({ waitUntil: 'networkidle' });
+      for (const [hash, sels] of [['#/', ['.hero .kicker', '.hero .ph-text', '.hero .ph', '.stamp']], ['#/stats', ['.mcell b', '.mcell span']], ['#/trips', ['.nav a.on small', '.nav a.is-open small', '.nav a small']], ['#/trip/japan-2024/01', ['.crumbs', '.post-meta', '.note', '.about-site p']]]) {
+        await go(page, hash);
+        const out = await page.evaluate(sels => {
+          const parse = c => { const v = c.match(/[\d.]+/g).map(Number); return c.startsWith('color(srgb') ? [v[0] * 255, v[1] * 255, v[2] * 255, v[3] ?? 1] : [v[0], v[1], v[2], v[3] ?? 1]; };
+          const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
+          const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+          const bgOf = el => {   // see-through backgrounds laid over what's behind them
+            const layers = []; for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
+            let base = [255, 255, 255]; for (const c of layers.reverse()) base = base.map((v, i) => v * (1 - c[3]) + c[i] * c[3]); return base;
+          };
+          const res = [];
+          for (const sel of sels) for (const el of document.querySelectorAll(sel)) { if (!el.getClientRects().length) continue; const r = ratio(parse(getComputedStyle(el).color), bgOf(el)); if (r < 4.5) res.push(`${sel} “${el.textContent.trim().slice(0, 12)}” ${r.toFixed(2)}`); }
+          return res;
+        }, sels);
+        for (const o of out) bad.push(`${mode} ${hash} ${o}`);
+      }
+      await page.evaluate(() => localStorage.removeItem('jj-mode'));
+      await page.close2();
+    }
+    ok(!bad.length, 'too faint: ' + [...new Set(bad)].slice(0, 12).join(', '));
   });
 
   test('Write page only on her PC: online there is no Write page or link', async () => {
@@ -365,7 +464,9 @@ if (SUITE === 'her') {
     await page.waitForTimeout(200);
     ok(!(await page.evaluate(() => window.__hit)), 'code in the address ran');
     eq((await shown(page)).h1, 'Not found', 'a made-up year');
-    for (const r of ['#/year/1999', '#/trip/nowhere', '#/trip/japan-2024/99', '#/country/ZZ', '#/nothing']) { await go(page, r); eq((await shown(page)).h1, 'Not found', r); }
+    for (const r of ['#/year/1999', '#/trip/nowhere', '#/trip/japan-2024/99', '#/country/ZZ', '#/nothing', '#/trip/constructor', '#/trip/__proto__', '#/trip/toString/01', '#/country/constructor', '#/country/toString', '#/country/__proto__', '#/continent/constructor'])
+      { await go(page, r); eq((await shown(page)).h1, 'Not found', r); }
+    eq(page.errors, [], 'page errors');
     await page.close2();
   });
 
@@ -554,7 +655,7 @@ if (SUITE === 'her') {
   });
 
   test('sidebar one level at a time (her pick, like Sim World): Trips › years › trips, Map › continents › countries; a click opens, a second closes', async () => {
-    for (const [w, h, phone] of [WIDTHS[0], WIDTHS[3]]) { const k = 'a';
+    for (const [w, h, phone] of [WIDTHS[0], WIDTHS[4]]) { const k = 'a';
       const page = await open({ width: w, height: h, phone, hash: '#/country/JP' });
       const info = () => page.evaluate(() => {
         const D = TRAVELS, visited = [...new Set(D.trips.flatMap(t => t.countries))].filter(c => c !== D.home);

@@ -11,11 +11,12 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
 // ---------- data helpers ----------
 const sortKey = t => t.from.length === 4 ? t.from + "-00" : t.from;
 const TRIPS = [...D.trips].sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
-const tripById = Object.fromEntries(TRIPS.map(t => [t.id, t]));
+const tripById = Object.assign(Object.create(null), Object.fromEntries(TRIPS.map(t => [t.id, t])));   // no inherited names (#/trip/constructor is Not found)
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
 const year = t => t.from.slice(0, 4);
 const YEARS = [...new Set(TRIPS.map(year))];
 const postsOf = id => D.posts.filter(p => p.trip === id);
-const country = c => D.countries[c] || { name: c, continent: "", at: [0, 0] };
+const country = c => own(D.countries, c) || { name: c, continent: "", at: [0, 0] };
 const VISITED = [...new Set(TRIPS.flatMap(t => t.countries))].filter(c => c !== D.home);
 window.MAP_NAMES = Object.fromEntries(Object.values(D.countries).filter(c => c.iso).map(c => [c.iso, c.name]));   // maps use the same country names as the pages
 const TOTAL_COUNTRIES = Object.values(D.continentTotals).reduce((a, b) => a + b, 0);
@@ -73,22 +74,35 @@ function inCountry(c, lat, lon) { // is a point inside one of a country's shapes
 }
 function isoOf(c) { return country(c).iso; }
 function mapOpts(codes) { const links = {}; codes.forEach(c => { links[isoOf(c)] = `#/country/${c}`; }); return { visited: codes.map(isoOf), links }; }
-const _main = {};
-function mainBox(c) { // bounding box of a country's biggest piece (so France means mainland France, the US the lower 48)
-  if (_main[c]) return _main[c];
+const _main = Object.create(null);
+// bounding box of a country's biggest piece (so France means mainland France, the US the lower 48); with islands, also every piece
+// within 2° of it, one after another (Japan's Hokkaido, Kyushu and Okinawa, Corsica, Zealand), but not far-off ones (Alaska, French Guiana)
+function mainBox(c, islands = false) {
+  const key = c + (islands ? "+" : "");
+  if (_main[key]) return _main[key];
   const shape = WORLD.hi[isoOf(c)]; if (!shape) { const a = country(c).at; return [a[1] - 3, a[0] - 3, a[1] + 3, a[0] + 3]; }
-  let best = null, bestA = -1;
-  for (const r of shape[1]) {
+  const boxOf = r => { let w = 180, s = 90, e = -180, n = -90; for (let i = 0; i < r.length; i += 2) { w = Math.min(w, r[i]); e = Math.max(e, r[i]); s = Math.min(s, r[i + 1]); n = Math.max(n, r[i + 1]); } return [w, s, e, n]; };
+  let best = 0, bestA = -1;
+  shape[1].forEach((r, j) => {
     let a = 0; for (let i = 0; i < r.length - 2; i += 2) a += r[i] * r[i + 3] - r[i + 2] * r[i + 1];
-    if (Math.abs(a) > bestA) { bestA = Math.abs(a); best = r; }
+    if (Math.abs(a) > bestA) { bestA = Math.abs(a); best = j; }
+  });
+  const boxes = shape[1].map(boxOf); let u = boxes[best];
+  if (islands) {
+    const used = new Set([best]); let grew = true;
+    while (grew) {
+      grew = false;
+      boxes.forEach((b, j) => {
+        if (used.has(j) || Math.max(b[0] - u[2], u[0] - b[2], b[1] - u[3], u[1] - b[3]) > 2) return;
+        used.add(j); grew = true; u = [Math.min(u[0], b[0]), Math.min(u[1], b[1]), Math.max(u[2], b[2]), Math.max(u[3], b[3])];
+      });
+    }
   }
-  let w = 180, s = 90, e = -180, n = -90;
-  for (let i = 0; i < best.length; i += 2) { w = Math.min(w, best[i]); e = Math.max(e, best[i]); s = Math.min(s, best[i + 1]); n = Math.max(n, best[i + 1]); }
-  return (_main[c] = [w, s, e, n]);
+  return (_main[key] = u);
 }
-function focusOn(codes, pins = []) {
+function focusOn(codes, pins = [], islands = false) {
   let w = 180, s = 90, e = -180, n = -90;
-  for (const c of codes) { const b = mainBox(c); w = Math.min(w, b[0]); s = Math.min(s, b[1]); e = Math.max(e, b[2]); n = Math.max(n, b[3]); }
+  for (const c of codes) { const b = mainBox(c, islands); w = Math.min(w, b[0]); s = Math.min(s, b[1]); e = Math.max(e, b[2]); n = Math.max(n, b[3]); }
   for (const p of pins) { w = Math.min(w, p.lon); e = Math.max(e, p.lon); s = Math.min(s, p.lat); n = Math.max(n, p.lat); }
   const px = Math.max(3, (e - w) * 0.18), py = Math.max(2, (n - s) * 0.18);
   w -= px; e += px; s -= py; n += py;
@@ -303,11 +317,11 @@ function countriesBody() {
   const pct = VISITED.length / TOTAL_COUNTRIES;
   const conts = Object.entries(D.continentTotals).map(([k, n]) => [k, VISITED.filter(c => country(c).continent === k).length, n]);
   const C = 2 * Math.PI * 52;
-  return `<div class="tracker">
+  return `<div class="tracker-box"><div class="tracker">
     <div class="ring"><svg viewBox="0 0 120 120" role="img" aria-label="${VISITED.length} of ${TOTAL_COUNTRIES} countries"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fg" cx="60" cy="60" r="52" stroke-dasharray="${(C * pct).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 60 60)"/></svg>
       <div><b>${VISITED.length}</b><span>of ${TOTAL_COUNTRIES} countries</span><small>${(pct * 100).toFixed(1)}% of the world</small></div></div>
     <div class="cont-bars">${conts.map(([k, v, n]) => `<div class="cbar" title="${esc(k)}: ${v} of ${n}"><span class="cname">${esc(k)}</span><span class="track"><i style="width:${Math.max(v ? 2 : 0, v / n * 100)}%"></i></span><span class="cval">${v} <small>of ${n}</small></span></div>`).join("")}</div>
-  </div>
+  </div></div>
   <h3 class="sr-only">Each country</h3><div class="country-grid">${VISITED.map(c => {
     const ts = TRIPS.filter(t => t.countries.includes(c));
     return `<a class="ctile" href="#/country/${c}"><span class="code">${c}</span><b>${esc(country(c).name)}</b><small>${plural(ts.length, "trip")} · ${[...new Set(ts.map(year))].join(", ")}</small></a>`;
@@ -327,12 +341,12 @@ function pageContinent(k) {
     <section class="sec"><h2 class="sec-h">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div></section>`;
 }
 function pageCountry(code) {
-  const k = D.countries[code]; if (!k) return notFound();
+  const k = own(D.countries, code); if (!k) return notFound();
   const ts = TRIPS.filter(t => t.countries.includes(code));
   const pins = placePins(ts).filter(p => inCountry(code, p.lat, p.lon));   // only the places that are in this country
   return `<nav class="crumbs"><a href="#/map">Map</a> › <a href="#/continent/${encodeURIComponent(k.continent)}">${esc(k.continent)}</a></nav>` +
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
-    `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins), labels: true, aria: `Map of ${k.name}` })}</div>
+    `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins, true), labels: true, aria: `Map of ${k.name}` })}</div>
     ${ts.length ? `<h2 class="sr-only">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div>` : `<p class="note">${code === D.home ? "Home, so not counted as a country visited." : "No trips here yet."}</p>`}`;
 }
 function firsts() { // the first trip to each continent and to each country, oldest first (worked out from the trips)
@@ -361,8 +375,9 @@ function pageStats() {
   const far = VISITED.map(c => [c, km(home, country(c).at)]).sort((a, b) => b[1] - a[1])[0] || null;
   const busiest = Math.max(...perYear.map(x => x[1]));
   const busyYears = perYear.filter(x => x[1] === busiest).map(x => x[0]);
-  const posts = D.posts.length, photos = D.posts.reduce((n, p) => n + p.photos.length, 0);
-  const days = D.posts.reduce((n, p) => n + dayCount(p), 0);
+  const real = D.posts.filter(p => !p.placeholder);   // her own posts only: placeholder and template posts aren't her writing
+  const posts = real.length, photos = real.reduce((n, p) => n + p.photos.length, 0);
+  const days = real.reduce((n, p) => n + dayCount(p), 0);
   const continents = new Set(VISITED.map(c => country(c).continent));
   const fact = (k, v, s) => `<div class="fact"><span class="fk">${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`;
   return head("Stats", "For fun") + `<div class="facts">
@@ -383,7 +398,7 @@ function pageStats() {
       <div class="bars" role="img" aria-label="Trips each year">${perYear.map(([y, n]) => `<div class="bar" title="${y}: ${plural(n, "trip")}"><span class="bv">${n || ""}</span><i style="height:${n / maxY * 100}%"></i><span class="bl">${String(y).slice(2)}</span></div>`).join("")}</div>
       <p class="note">Years from ${span[0]} to ${span[span.length - 1]}; labels are the last two digits. A trip counts in the year it started.</p></section>
     <section class="sec chart-sec"><h2 class="sec-h">Which months</h2>
-      <div class="months">${monthN.map((n, i) => `<div class="mcell ${n / maxM > 0.5 ? "dark" : ""}" style="--a:${n ? 0.18 + 0.82 * n / maxM : 0}" title="${MONTHS[i]}: ${plural(n, "trip")}"><b>${n || ""}</b><span>${MONTHS[i].slice(0, 3)}</span></div>`).join("")}</div>
+      <div class="months">${monthN.map((n, i) => `<div class="mcell ${n && n === maxM ? "top" : ""}" style="--a:${n ? (0.15 + 0.6 * n / maxM).toFixed(3) : 0}" title="${MONTHS[i]}: ${plural(n, "trip")}"><b>${n || ""}</b><span>${MONTHS[i].slice(0, 3)}</span></div>`).join("")}</div>
       <p class="note">Trips away in each month.</p></section>`;
 }
 function pageWrite() {
@@ -582,14 +597,18 @@ function setMenu(o, back) {
   document.documentElement.classList.toggle("nav-lock", o);
   $("#menuBtn").setAttribute("aria-expanded", o);
   $("#side").inert = narrow && !o;
-  $("#main").inert = o;
-  if (o && !was) $("#side a").focus();
+  for (const el of [$("#main"), $("#topbar"), $(".skip")]) el.inert = o;   // while open, Tab stays inside the drawer
+  if (o && !was) ($("#nav a.on") || $('#nav a[href="#/"]')).focus();   // the page you're on (Home if none), never the Journals link
   else if (!o && was && back) $("#menuBtn").focus();
 }
 $("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-open"), true);
 $("#scrim").onclick = () => setMenu(false, true);
 addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("menu-open")) setMenu(false, true); });
-NARROW.addEventListener("change", () => setMenu(false));
+NARROW.addEventListener("change", () => {   // crossing 900px resets the drawer; focus back on Menu if it was in the drawer
+  const inside = $("#side").contains(document.activeElement);
+  setMenu(false);
+  if (inside && NARROW.matches) $("#menuBtn").focus();
+});
 addEventListener("hashchange", render);
 // on her PC: if the site has been rebuilt since this page was opened, load the new version (so she never sees an old copy)
 if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange", () => {
@@ -598,6 +617,11 @@ if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange"
     if (now && mine && now !== mine) location.reload();
   }).catch(() => {});
 });
+
+// "← Jemma’s Journals" goes to "/" (all her sites at one address once online); opened as a file on her PC, to the Journals page
+// beside this project instead of a listing of the C drive (as Sim World does)
+const HOME_LOCAL = "../../JemmasJournals/concepts/index.html";
+if (location.protocol === "file:") $(".home-link").setAttribute("href", HOME_LOCAL);
 
 // her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper: set on <html> in index.html
 render();
