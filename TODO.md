@@ -22,7 +22,7 @@ XSS through the address (#/year/…), unknown years now Not found; an unmarked s
 
 ## Later
 - Real trips and dates (the current ones are placeholders).
-- Going online: load the detailed map (world.js is 1.2 MB, mostly the 1:50m shapes) only on pages that zoom in.
+- Going online: load the detailed map (world.js is 1.2 MB, mostly the 1:50m shapes) only on pages that zoom in. (22 Nov, phone review: not lazy-loaded yet. Home, every trip, Map, country, continent, Timeline and Stats need the shapes: maps, and distances use them to tell which country a named place is in; only trip lists, posts, search and Write could skip it, and home, the usual first page, draws a map. The real saving is splitting the 1:50m shapes into their own file for zoomed maps.)
 - Comments: choose a service when going online.
 - Write page: editing or deleting a post that’s already saved (only new posts for now).
 - Ideas not mocked yet (need real dates or photos): “on this day”, a chosen cover photo per trip.

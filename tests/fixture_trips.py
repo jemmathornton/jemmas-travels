@@ -1,6 +1,6 @@
 """A small made-up set of trips with known answers, for tests (never her real data).
 
-Covers the awkward cases: a trip with no month, a trip across New Year, several countries, a country over the
+Covers the awkward cases: a trip with no month, a trip across New Year, several countries, a trip with a place named in only one of its two countries, a country over the
 180° line (Fiji), a visit to the home country, a title with < > & and an apostrophe, posts with dates instead of
 days, posts with real photo files and photo markers, an empty year in the middle.
 """
@@ -26,7 +26,8 @@ TRIPS = {"_note": "made up for tests", "trips": [
     {"id": "paris-2026", "title": "Paris <with> Mum's & Dad's", "from": "2026-03", "to": "2026-03", "countries": ["FR"],
      "places": [["Paris", 48.86, 2.35]]},
     {"id": "scotland-2020", "title": "Scotland", "from": "2020-08", "to": "2020-08", "countries": ["GB"]},
-    {"id": "italy-france-2020", "title": "Italy and France", "from": "2020-05", "to": "2020-06", "countries": ["IT", "FR"]},
+    {"id": "italy-france-2020", "title": "Italy and France", "from": "2020-05", "to": "2020-06", "countries": ["IT", "FR"],
+     "places": [["Lyon", 45.76, 4.84]]},   # a place named in only one of its countries (like "Canada and Boston")
 ]}
 
 # expected answers (worked out by hand)
@@ -40,7 +41,7 @@ EXPECT = {
     "most_visited": ["France"],   # 2 trips
     # trip distances: Birmingham (52.48, -1.9) to each stop and back, great circle, R 6371 km, to the nearest 10 km
     "distances": {"paris-2026": "1,000 km",           # 1,003.1
-                  "italy-france-2020": "3,140 km",    # 3,144.3 (Italy's point, then France's)
+                  "italy-france-2020": "3,100 km",    # 3,104.2: Italy's own point (no place named there), then Lyon; not Lyon alone
                   "fiji-nz-2027": "37,470 km"},       # 37,468.1
     "furthest": "New Zealand",    # from Birmingham: NZ ~18,300 km, Fiji ~16,300 km
 }

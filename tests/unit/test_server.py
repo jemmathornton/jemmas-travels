@@ -80,6 +80,73 @@ class Saving(unittest.TestCase):
         self.assertEqual((self.box.read("data/trips.json"), sorted(os.listdir(self.box.path("data", "posts")))), before)
         self.assertFalse(any(f.startswith("01-") for d in os.listdir(self.box.path("site", "photos")) for f in os.listdir(self.box.path("site", "photos", d))))
 
+    def snapshot(self):
+        """Every file under data/ and site/photos/ with its exact bytes, and every folder."""
+        out = {}
+        for top in ("data", os.path.join("site", "photos")):
+            for d, dirs, files in os.walk(self.box.path(top)):
+                out[os.path.relpath(d, self.box.root) + os.sep] = None
+                for f in files:
+                    with open(os.path.join(d, f), "rb") as fh:
+                        out[os.path.relpath(os.path.join(d, f), self.box.root)] = fh.read()
+        return out
+
+    def test_any_failure_keeps_nothing(self):
+        """round 5 review: not only ValueError: a build past its time limit, a disk error, any other exception"""
+        import subprocess
+        from pathlib import Path
+        from unittest import mock
+        # trips.json with Windows line endings, so "put back" has to be byte for byte, not just the same text
+        with open(self.box.path("data", "trips.json"), "rb") as f:
+            raw = f.read()
+        with open(self.box.path("data", "trips.json"), "wb") as f:
+            f.write(raw.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        import check_data
+        real_write = Path.write_text
+
+        def disk_error_on(name):
+            def fake(path, *a, **k):
+                if path.name == name:
+                    raise OSError(28, "No space left on device")
+                return real_write(path, *a, **k)
+            return mock.patch.object(Path, "write_text", fake)
+
+        failures = {
+            "build timed out": mock.patch.object(self.serve.subprocess, "run", side_effect=subprocess.TimeoutExpired("build.py", 300)),
+            "disk error writing the post": disk_error_on("01.md"),
+            "disk error writing trips.json": disk_error_on("trips.json"),
+            "unexpected error in the check": mock.patch.object(check_data, "problems", side_effect=KeyError("boom")),
+        }
+        for why, patch in failures.items():
+            with self.subTest(why=why):
+                before = self.snapshot()
+                with patch:
+                    status, out = self.serve.save_post({"trip": "", "newTrip": {"title": "Lake", "from": "2027-05", "to": "2027-05", "countries": ["IT"]},
+                                                        "title": "x", "text": "Words.", "cover": True,
+                                                        "photos": [{"name": "a.jpg", "data": photo_b64(400, 300)}, {"name": "b.jpg", "data": photo_b64(400, 300)}]})
+                self.assertEqual(status, 500, out)
+                self.assertFalse(out["ok"]); self.assertTrue(out["problems"][0].startswith("Nothing was saved"), out)
+                after = self.snapshot()
+                self.assertEqual(sorted(after), sorted(before), "files or folders left behind / lost")
+                self.assertEqual(after, before, "a file changed (trips.json must be put back byte for byte)")
+        # and a normal save still works afterwards
+        status, out = self.serve.save_post({"trip": "chile-2026", "title": "Andes", "text": "x"})
+        self.assertEqual(status, 200, out)
+
+    def test_post_number_never_reuses_left_photos(self):
+        """round 5 review: her last post's .md deleted by hand, its photos left: the next post gets a new number"""
+        status, out = self.serve.save_post({"trip": "chile-2026", "title": "One", "text": "x", "photos": [{"name": "a.jpg", "data": photo_b64(400, 300)}]})
+        self.assertEqual((status, out["slug"]), (200, "01"), out)
+        os.remove(self.box.path("data", "posts", "chile-2026", "01.md"))
+        with open(self.box.path("site", "photos", "chile-2026", "01-1.jpg"), "rb") as f:
+            kept = f.read()
+        status, out = self.serve.save_post({"trip": "chile-2026", "title": "Two", "text": "[photo 9]", "photos": [{"name": "b.jpg", "data": photo_b64(400, 300)}]})
+        self.assertEqual(status, 400, out)   # fails (marker past the last photo) ...
+        with open(self.box.path("site", "photos", "chile-2026", "01-1.jpg"), "rb") as f:
+            self.assertEqual(f.read(), kept, "... and the photo left behind is untouched")
+        status, out = self.serve.save_post({"trip": "chile-2026", "title": "Two", "text": "x", "photos": [{"name": "b.jpg", "data": photo_b64(400, 300)}]})
+        self.assertEqual((status, out["slug"]), (200, "02"), out)
+
     def test_refusals(self):
         for body, why in [({"trip": "nowhere", "title": "x"}, "No trip"), ({"trip": "paris-2026", "title": ""}, "title"),
                           ({"trip": "", "newTrip": {"title": "T", "from": "2027-01", "countries": ["ZZ"]}, "title": "x"}, "ZZ"),
@@ -152,8 +219,16 @@ class Http(unittest.TestCase):
             status, body, ctype = self.get("family/" + name)
             self.assertEqual(status, 200, name); self.assertIn(kind, ctype); self.assertIn(b"Jemma", body)
         for bad in ("family/", "family/nope.js", "family/../index.html", "family/%2e%2e/index.html", "family/..%2f..%2ftravels%2ftools%2fserve.py",
-                    "family/..%5c..%5ctools%5cserve.py", "family//etc/passwd"):
+                    "family/..%5c..%5ctools%5cserve.py", "family//etc/passwd",
+                    # round 5 review: only plain names spelt exactly (Windows reads these as mode.js), and only web files
+                    "family/mode.js.", "family/mode.js%20", "family/mode.js::$DATA", "family/MODE.JS", "family/README.md", "family/mode"):
             self.assertEqual(self.get(bad)[0], 404, bad)
+
+    def test_bad_content_length_is_400(self):
+        import http.client
+        c = http.client.HTTPConnection("127.0.0.1", self.srv.server_address[1], timeout=10)
+        c.putrequest("POST", "/api/post"); c.putheader("X-Travels", "1"); c.putheader("Content-Length", "abc"); c.endheaders()
+        r = c.getresponse(); self.assertEqual(r.status, 400); r.read(); c.close()
 
     def test_saves_over_http(self):
         status, out = self.post({"trip": "chile-2026", "title": "Andes", "dates": "2026-02-01", "text": "Snow."})

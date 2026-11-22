@@ -106,6 +106,32 @@ class CheckData(unittest.TestCase):
         self.assertTrue(any("03.md" in p and "days" in p for p in found))
         self.assertTrue(any("04.md" in p and "dates" in p for p in found))
 
+    def test_days_and_dates_must_be_real(self):
+        """round 5 review: 31 September, month 13, an end before the start and "Days 4–2" all used to pass"""
+        bad = {"days: 4-2": "ends before it starts", "days: 0": "day 1", "days: 0-2": "day 1",
+               "dates: 2026-09-31": "isn’t a real date", "dates: 2026-13-01": "isn’t a real date", "dates: 2026-02-29": "isn’t a real date",
+               "dates: 2026-09-05 to 2026-09-32": "2026-09-32 isn’t a real date",
+               "dates: 2026-09-07 to 2026-09-05": "end is before the start", "dates: 2026-12-31 to 2026-01-02": "end is before the start"}
+        for line, why in bad.items():
+            with self.subTest(line=line):
+                self.box.write("data/posts/paris-2026/03.md", f"---\ntitle: x\n{line}\nphotos: 0\n---\nhi\n")
+                found = [p for p in self.problems() if "03.md" in p]
+                self.assertTrue(any(why in p for p in found), found)
+        for line in ("days: 3", "days: 2-4", "days: 2 - 2", "dates: 2028-02-29", "dates: 2026-09-05 to 2026-09-05",
+                     "dates: 2026-12-30 to 2027-01-02"):
+            with self.subTest(line=line):
+                self.box.write("data/posts/paris-2026/03.md", f"---\ntitle: x\n{line}\nphotos: 0\n---\nhi\n")
+                self.assertEqual([p for p in self.problems() if "03.md" in p], [])
+
+    def test_one_post_parser(self):
+        """round 5 review: build.py and check_data.py read posts with the same function (tools/post_file.py)"""
+        import post_file
+        build = load(self.box, "build")
+        self.assertIs(self.check.read_post, post_file.read_post_file)
+        self.assertIs(build.read_post_file, post_file.read_post_file)
+        self.assertEqual(post_file.split_post("---\nTitle: A: b\nphotos: 2\n---\nOne.\n\n\nTwo.\n"), ({"title": "A: b", "photos": "2"}, ["One.", "Two."]))
+        self.assertEqual(post_file.split_post("no header"), (None, None))
+
     def test_placeholder_post_must_mark_everything(self):
         self.box.write("data/posts/paris-2026/03.md", "---\ntitle: [placeholder] T\nplaceholder: yes\nphotos: 1\n---\n"
                        "[placeholder] ok\n\nNot marked.\n\n[photo 1: unmarked caption]\n")

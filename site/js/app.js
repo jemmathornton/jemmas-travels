@@ -114,8 +114,21 @@ function focusOn(codes, pins = [], islands = false) {
 }
 // ---------- extras (21 Nov; she likes them all): routes, distance, timeline, search ----------
 const HOME_AT = () => D.homeAt || country(D.home).at;
-function tripStops(t) { // where a trip went, in order: the places she named, or else each country's own point
-  return t.places && t.places.length ? t.places.map(([, lat, lon]) => [lat, lon]) : t.countries.map(c => country(c).at);
+function placeCountry(t, lat, lon) { // which of the trip's countries a named place is in (nearest box if it sits just off a coast), or -1
+  const i = t.countries.findIndex(c => inCountry(c, lat, lon)); if (i >= 0) return i;
+  let best = -1, bestD = 1.5;   // degrees: a coastal city just outside the 1:50m outline
+  t.countries.forEach((c, j) => { const b = mainBox(c, true), d = Math.hypot(Math.max(b[0] - lon, 0, lon - b[2]), Math.max(b[1] - lat, 0, lat - b[3])); if (d < bestD) { bestD = d; best = j; } });
+  return best;
+}
+function tripStops(t) { // where a trip went, in order: the places she named, plus each country with no named place at its own point (22 Nov:
+  // "Canada and Boston" names only Boston, so Canada comes first at its point), in the trip's country order
+  const stops = (t.places || []).map(([, lat, lon]) => ({ at: [lat, lon], i: placeCountry(t, lat, lon) }));
+  t.countries.forEach((c, i) => {
+    if (stops.some(s => s.i === i)) return;
+    const k = stops.findIndex(s => s.i > i);   // before the first stop in a later country
+    stops.splice(k < 0 ? stops.length : k, 0, { at: country(c).at, i });
+  });
+  return stops.map(s => s.at);
 }
 function tripRoute(t) { return [HOME_AT(), ...tripStops(t), HOME_AT()]; }   // from home and back
 function tripKm(t) { const r = tripRoute(t); let n = 0; for (let i = 0; i < r.length - 1; i++) n += km(r[i], r[i + 1]); return n; }
@@ -133,6 +146,9 @@ function ph(text) { // her words, or a marked placeholder
   if (s.startsWith("[placeholder]")) return `<span class="ph-text">${esc(s.slice(13).trim())}</span> <span class="ph">Placeholder</span>`;
   return esc(s);
 }
+// real photos only: a post's "photos: 4" means four "Photo to come" frames, not photos (round 5 review)
+const realPhotos = ps => ps.reduce((n, p) => n + p.photos.filter(Boolean).length, 0);
+const photoCount = n => n ? plural(n, "photo") : "No photos yet";
 function tint(id) { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997; return 160 + (h % 32); }
 function photo(trip, file, i, cls = "", alt = "") {
   if (file) return `<figure class="photo ${cls}"><img src="photos/${encodeURIComponent(trip)}/${encodeURIComponent(file)}" alt="${esc(alt)}" loading="lazy"></figure>`;
@@ -166,7 +182,7 @@ function postTile(p) {
   const t = tripById[p.trip];
   return `<article class="post-tile"><a href="#/trip/${p.trip}/${p.slug}" tabindex="-1" aria-hidden="true">${photo(p.trip, p.photos[0], 0, "cover")}</a>
     <div class="post-meta"><span class="day">${esc(dayLabel(p))}</span><a href="#/trip/${t.id}">${esc(t.title)}</a></div>
-    <h3><a href="#/trip/${p.trip}/${p.slug}">${ph(p.title)}</a></h3><div class="meta">${esc(fmtRange(t))} · ${plural(p.photos.length, "photo")}</div></article>`;
+    <h3><a href="#/trip/${p.trip}/${p.slug}">${ph(p.title)}</a></h3><div class="meta">${esc(fmtRange(t))} · ${photoCount(realPhotos([p]))}</div></article>`;
 }
 function postCard(p, opts = {}) {
   const t = tripById[p.trip];
@@ -253,12 +269,12 @@ function tripMap(t) { // the trip's countries coloured in, its places, and its r
 function pageTrip(id) {
   const t = tripById[id]; if (!t) return notFound();
   const posts = postsOf(id);
-  const photos = posts.reduce((n, p) => n + p.photos.length, 0);
-  return `<nav class="crumbs"><a href="#/trips">Trips</a> › <a href="#/year/${year(t)}">${year(t)}</a></nav>
+  const photos = realPhotos(posts);
+  return `<nav class="crumbs" aria-label="Breadcrumb"><a href="#/trips">Trips</a> › <a href="#/year/${year(t)}">${year(t)}</a></nav>
     <header class="trip-head">
       <div class="trip-head-text"><div class="kicker">${icon("calendar")}${esc(fmtRange(t))}</div><h1>${esc(t.title)}</h1>
         <div class="chips">${chips(t.countries)}</div>
-        <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${plural(photos, "photo")}` : "No posts yet"}</div>
+        <div class="meta">${posts.length ? `${plural(posts.length, "post")} · ${photoCount(photos)}` : "No posts yet"}</div>
         <div class="meta route-meta">${icon("route")}<span class="dk">Distance</span> <b class="dist">${fmtKm(tripKm(t))}</b> <span>from ${esc(D.homeTown || "home")} and back, as the crow flies</span></div></div>
       <div class="trip-map">${tripMap(t)}</div>
     </header>
@@ -296,13 +312,13 @@ function pagePost(id, slug) {
   const t = tripById[id]; const posts = postsOf(id); const i = posts.findIndex(p => p.slug === slug);
   if (!t || i < 0) return notFound();
   const p = posts[i], prev = posts[i - 1], next = posts[i + 1], body = postBody(p);
-  return `<nav class="crumbs"><a href="#/trips">Trips</a> › <a href="#/year/${year(t)}">${year(t)}</a> › <a href="#/trip/${t.id}">${esc(t.title)}</a></nav>
+  return `<nav class="crumbs" aria-label="Breadcrumb"><a href="#/trips">Trips</a> › <a href="#/year/${year(t)}">${year(t)}</a> › <a href="#/trip/${t.id}">${esc(t.title)}</a></nav>
     <article class="post">
       <header><div class="post-meta"><span class="day">${esc(dayLabel(p))}</span>${esc(fmtRange(t))}${p.place ? `<span class="place">${icon("map-pin")}${ph(p.place)}</span>` : ""}</div>
       <h1>${ph(p.title)}</h1></header>
       <div class="post-text">${body.html}</div>
       ${body.rest.length ? `<div class="gallery n${Math.min(body.rest.length, 5)}">${body.rest.map(j => photo(id, p.photos[j], j)).join("")}</div>` : ""}
-      <nav class="post-nav">${prev ? `<a href="#/trip/${id}/${prev.slug}">${icon("chevron-left")}<span><small>Previous · ${esc(dayLabel(prev))}</small>${ph(prev.title)}</span></a>` : "<span></span>"}
+      <nav class="post-nav" aria-label="Posts">${prev ? `<a href="#/trip/${id}/${prev.slug}">${icon("chevron-left")}<span><small>Previous · ${esc(dayLabel(prev))}</small>${ph(prev.title)}</span></a>` : "<span></span>"}
         ${next ? `<a class="next" href="#/trip/${id}/${next.slug}"><span><small>Next · ${esc(dayLabel(next))}</small>${ph(next.title)}</span>${icon("chevron-right")}</a>` : "<span></span>"}</nav>
       <p class="back-trip"><a href="#/trip/${id}">${icon("arrow-left")}All posts from ${esc(t.title)}</a></p>
     </article>${comments()}`;
@@ -335,7 +351,7 @@ function pageContinent(k) {
   const cs = VISITED.filter(c => country(c).continent === k).sort((x, y) => country(x).name.localeCompare(country(y).name));
   const ts = TRIPS.filter(t => t.countries.some(c => cs.includes(c)));
   const pins = placePins(ts).filter(p => cs.some(c => inCountry(c, p.lat, p.lon)));
-  return `<nav class="crumbs"><a href="#/map">Map</a></nav>` +
+  return `<nav class="crumbs" aria-label="Breadcrumb"><a href="#/map">Map</a></nav>` +
     head(esc(k), `${cs.length} of ${D.continentTotals[k]} countries · ${plural(ts.length, "trip")}`) +
     `<div class="trip-map wide">${worldMap(pins, { ...mapOpts(cs), focus: focusOn(cs, pins), labels: true, aria: `Map of the countries visited in ${k}` })}</div>
     <section class="sec"><h2 class="sec-h">Countries</h2><div class="country-grid">${cs.map(c => `<a class="ctile" href="#/country/${c}"><b>${esc(country(c).name)}</b><small>${plural(tripsIn(c).length, "trip")} · ${[...new Set(tripsIn(c).map(year))].join(", ")}</small></a>`).join("")}</div></section>
@@ -345,7 +361,7 @@ function pageCountry(code) {
   const k = own(D.countries, code); if (!k) return notFound();
   const ts = TRIPS.filter(t => t.countries.includes(code));
   const pins = placePins(ts).filter(p => inCountry(code, p.lat, p.lon));   // only the places that are in this country
-  return `<nav class="crumbs"><a href="#/map">Map</a> › <a href="#/continent/${encodeURIComponent(k.continent)}">${esc(k.continent)}</a></nav>` +
+  return `<nav class="crumbs" aria-label="Breadcrumb"><a href="#/map">Map</a> › <a href="#/continent/${encodeURIComponent(k.continent)}">${esc(k.continent)}</a></nav>` +
     head(esc(k.name), `${plural(ts.length, "trip")} · ${esc(k.continent)}`) +
     `<div class="trip-map wide">${worldMap(pins, { ...mapOpts([code]), focus: focusOn([code], pins, true), labels: true, aria: `Map of ${k.name}` })}</div>
     ${ts.length ? `<h2 class="sr-only">Trips</h2><div class="trip-grid">${ts.map(tripCard).join("")}</div>` : `<p class="note">${code === D.home ? "Home, so not counted as a country visited." : "No trips here yet."}</p>`}`;
@@ -377,7 +393,7 @@ function pageStats() {
   const busiest = Math.max(...perYear.map(x => x[1]));
   const busyYears = perYear.filter(x => x[1] === busiest).map(x => x[0]);
   const real = D.posts.filter(p => !p.placeholder);   // her own posts only: placeholder and template posts aren't her writing
-  const posts = real.length, photos = real.reduce((n, p) => n + p.photos.length, 0);
+  const posts = real.length, photos = realPhotos(real);
   const days = real.reduce((n, p) => n + dayCount(p), 0);
   const continents = new Set(VISITED.map(c => country(c).continent));
   const fact = (k, v, s) => `<div class="fact"><span class="fk">${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`;
@@ -473,7 +489,7 @@ function wireWrite() {
     } catch (err) { msg.textContent = "Not saved: " + err; btn.disabled = false; }
   };
 }
-function notFound() { return head("Not found", "") + `<p class="note">There’s nothing at this address.</p><p class="not-found-links"><a href="#/">Home</a> · <a href="#/trips">All trips</a> · <a href="#/map">Map</a></p>`; }
+function notFound() { render.lost = true; return head("Not found", "") + `<p class="note">There’s nothing at this address.</p><p class="not-found-links"><a href="#/">Home</a> · <a href="#/trips">All trips</a> · <a href="#/map">Map</a></p>`; }
 
 // ---------- shell ----------
 function pageTimeline() {
@@ -549,9 +565,10 @@ function routeOf(hash) {
 }
 const navRoute = () => routeOf(location.hash) || [];
 // a trip name cut with "…" shows in full on hover (her decision, 22 Nov): the title is set only while the name is actually cut,
-// and it is the same words as the link, so screen readers still read the name once
+// and it is the same words as the link, so screen readers still read the name once. Countries (with a count beside them, so
+// less room) and the year/continent openers too (round 5 review)
 $("#nav").addEventListener("pointerover", e => {
-  const a = e.target.closest('a.kid2[href^="#/trip/"]'), s = a && a.querySelector("span"); if (!s) return;
+  const a = e.target.closest("a.kid2, a.kid"), s = a && a.querySelector("span"); if (!s) return;
   if (s.scrollWidth > s.clientWidth) a.title = s.textContent; else a.removeAttribute("title");
 });
 $("#nav").addEventListener("click", e => {
@@ -567,6 +584,7 @@ function render() {
   const read = routeOf(location.hash), route = read || [];
   const [r, a, b] = route;
   let html;
+  render.lost = false;   // notFound() sets it, so body[data-page] is "notfound" whatever the address (round 5 review)
   if (!read || route.length > (PARTS[r] || 1)) html = notFound();   // a broken address, or more parts than the page takes
   else if (!r) html = pageHome();
   else if (r === "trips") html = a === "by-country" ? pageTripsByCountry() : a ? notFound() : pageTrips();
@@ -584,13 +602,13 @@ function render() {
   else html = notFound();
   $("#view").innerHTML = html;
   $("#nav").innerHTML = nav(route);
-  document.body.dataset.page = !read ? "notfound" : r || "home";
+  document.body.dataset.page = render.lost ? "notfound" : r || "home";
   if (drawer) drawer.close("silent");   // a link or a search in the drawer: it closes, and focus goes to the page just below
   if (render.done) $("#view").focus({ preventScroll: true });   // after a click, keyboard and screen readers start at the new page
   render.done = true;
   if (r === "write") wireWrite();
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
-  window.scrollTo(0, 0);
+  window.scrollTo(0, (history.state && history.state.y) || 0);   // Back/Forward: where she was, at once; a new page: the top
 }
 // the footer, Back to top and Dark mode are the family's shared code (/family/family.js, her decision 22 Nov); the dark colours are
 // Travels' own (:root[data-mode=dark] in site.css). The Menu drawer at 900px and below is the family's too, set up once family.js
@@ -607,25 +625,30 @@ function startFamily() {
   });
 }
 addEventListener("DOMContentLoaded", startFamily);   // deferred scripts (family.js) have run by then
-// opened as a file on her PC, /family/ isn't there: load the family's code from Jemma's Journals beside this project instead
-if (location.protocol === "file:" && !window.JJFamily) {
-  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "../../site/family/family.css";
-  document.querySelector('link[href^="site.css"]').before(css);
-  const mode = document.createElement("script"); mode.src = "../../site/family/mode.js"; mode.async = false; mode.setAttribute("data-old-key", "jt-mode");
-  const js = document.createElement("script"); js.src = "../../site/family/family.js"; js.async = false; js.onload = startFamily;
-  document.head.append(mode, js);
-}
+// (opened as a file, js/family-load.js already loaded them from ../../site/family/: round 5 review)
 // clicks and searches without inline handlers (so a strict Content-Security-Policy can be used online: round 3 review)
 $(".skip").addEventListener("click", e => { e.preventDefault(); $("#view").focus(); });
 document.addEventListener("submit", e => {
   const form = e.target.closest("form[data-search]"); if (!form) return;
   e.preventDefault(); location.hash = "#/search/" + encodeURIComponent(form.q.value.trim());
 });
+document.addEventListener("click", e => {   // tapping the magnifier (or anywhere in the box) types in the search box (round 5 phone review)
+  const form = e.target.closest("form[data-search]"); if (!form || e.target.closest("input, button")) return;
+  form.querySelector("input").focus();
+});
 $("#view").addEventListener("click", e => {   // Trips by country: the continent chips jump to their section
   const a = e.target.closest("a[data-jump]"); if (!a) return;
   e.preventDefault(); document.getElementById(a.dataset.jump)?.scrollIntoView();
 });
 addEventListener("hashchange", render);
+// Back keeps the place on the page at once (round 5 phone review: the browser's own restore took over a second, the top showed
+// first): each history entry remembers its scroll position in history.state, and render() goes back to it
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+function saveScroll() { try { history.replaceState({ ...(history.state || {}), y: Math.round(scrollY) }, ""); } catch (e) { /* too many calls: next time */ } }
+let scrollSave = 0;
+addEventListener("scroll", () => { clearTimeout(scrollSave); scrollSave = setTimeout(saveScroll, 150); }, { passive: true });
+document.addEventListener("click", e => { if (e.target.closest("a[href^='#']")) { clearTimeout(scrollSave); saveScroll(); } }, true);   // before the page changes
+addEventListener("pagehide", saveScroll);
 // on her PC: if the site has been rebuilt since this page was opened, load the new version (so she never sees an old copy)
 let checked = 0;   // at most once every 10 seconds (round 3 review: it doubled the requests while she browsed)
 if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange", () => {
@@ -642,5 +665,4 @@ if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange"
 const HOME_LOCAL = "../../site/index.html";   // since 21 Nov this site sits inside Jemma’s Journals: travels/site → site
 if (location.protocol === "file:") $(".home-link").setAttribute("href", HOME_LOCAL);
 
-// her picks (21 Nov): Old Atlas, pale sidebar with a faint grid, banner header, plain paper: set on <html> in index.html
 render();

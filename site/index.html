@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-GB" data-look="f" data-layout="side-pale-grid" data-header="banner" data-bg="plain">
+<html lang="en-GB">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -14,11 +14,10 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <!-- the family's shared code, one copy in Jemma’s Journals (site/family/, her decision 22 Nov): light or dark set before the page is drawn
      (always opens light; localStorage "jj-mode" shared by all her sites; the old "jt-mode" moved over once), the footer, Back to top and
-     the Menu drawer. Opened as a file, js/app.js loads them from ../../site/family/ instead. -->
-<script src="/family/mode.js" data-old-key="jt-mode"></script>
-<link rel="stylesheet" href="/family/family.css">
-<script src="/family/family.js" defer></script>
-<link rel="stylesheet" href="site.css?v=6fb2cac7">
+     the Menu drawer. js/family-load.js writes the three tags here: /family/mode.js (data-old-key jt-mode), /family/family.css and
+     /family/family.js (deferred); opened as a file, the same from ../../site/family/ (round 5 review: no failed requests, no flash). -->
+<script src="js/family-load.js?v=5457c249"></script>
+<link rel="stylesheet" href="site.css?v=02dbcbc8">
 </head>
 <body>
 <a class="skip" href="#view">Skip to the page</a>
@@ -33,20 +32,21 @@
     </div>
     <nav class="nav" id="nav" aria-label="Travels"></nav>
   </header>
-  <main id="main">
-    <div class="wrap" id="view" tabindex="-1"></div>
+  <!-- the page itself is <main>; the footer sits beside it, not inside (a landmark inside another: round 5 review) -->
+  <div class="main" id="main">
+    <main class="wrap" id="view" tabindex="-1"></main>
     <!-- bottom of every page: the family footer (site/family/, the same on all her sites): the name, line 1 (the same words on every site,
          put in by family.js), Travels’ own credits, then Back to top and Dark/Light mode (family.js adds the words and icons and wires them) -->
     <footer class="jj-foot" id="foot" role="contentinfo"><b class="jj-name">Jemma’s Travels</b>
       <p data-jj-line1>No cookies, no tracking, no ads. Made with HTML, CSS, JavaScript and Python, kept on GitHub.</p>
       <p data-jj-credits><span class="cr">Photos are my own</span><span class="dot" aria-hidden="true">&nbsp;·</span> <span class="cr">Country shapes from Natural Earth</span><span class="dot" aria-hidden="true">&nbsp;·</span> <span class="cr">Fonts: Instrument Serif and Manrope</span><span class="dot" aria-hidden="true">&nbsp;·</span> <span class="cr">Icons by Lucide</span></p>
       <div class="jj-foot-links"><a href="#top" id="topBtn" data-jj-top="#view"></a><button id="modeBtn" data-jj-mode></button></div></footer>
-  </main>
+  </div>
 </div>
 <script src="js/icons.js?v=81c1fdc9"></script>
 <script src="js/data.js?v=58b8520e"></script>
 <script src="js/world.js?v=f3c70637"></script>
 <script src="js/map.js?v=0943139c"></script>
-<script src="js/app.js?v=3587be4a"></script>
+<script src="js/app.js?v=4daec328"></script>
 </body>
 </html>

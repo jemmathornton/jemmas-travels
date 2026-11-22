@@ -3,11 +3,15 @@
 Checks trips (ids, dates, countries, places), countries (names, continents, map codes) and posts (header, days or
 dates, photos, photo markers pointing at photos that exist) and that no photo in site/photos/ has location data. Used by the tests too (problems() returns the list).
 """
+import datetime
 import json
 import os
 import re
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from post_file import read_post_file  # noqa: E402  (the one post parser, shared with build.py)
 
 ROOT = Path(os.environ.get("TRAVELS_ROOT", Path(__file__).resolve().parent.parent))
 CONTINENTS = {"Europe", "Asia", "Africa", "North America", "South America", "Oceania"}
@@ -19,18 +23,43 @@ MARK = re.compile(r"^\[(photos?) (\d+)(?:\s*-\s*(\d+))?((?:\s+(?:left|right|wide
 LOOKS_LIKE_MARK = re.compile(r"^\[photos?\b", re.I)
 
 
-def read_post(path):
-    text = path.read_text(encoding="utf-8")
-    m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", text, re.S)
-    if not m:
-        return None, None
-    meta = {}
-    for line in m.group(1).splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            meta[k.strip().lower()] = v.strip()
-    paras = [p.strip() for p in re.split(r"\n\s*\n", m.group(2).strip()) if p.strip()]
-    return meta, paras
+read_post = read_post_file
+
+
+def days_problem(days):
+    """None if days is like 3 or 2-4 (first day 1 or more, the range not backwards), else what's wrong (round 5 review)."""
+    if not DAYS.match(days):
+        return "should be like 3 or 2-4"
+    a, _, b = days.partition("-")
+    a, b = int(a), int(b or a)
+    if a < 1:
+        return "should start at day 1 or later"
+    if b < a:
+        return f"ends before it starts ({a}–{b})"
+    return None
+
+
+def dates_problem(dates):
+    """None if dates are real calendar dates (no 31 September, no month 13) and the end isn't before the start, else what's wrong."""
+    if not DATES.match(dates):
+        return "should be like 2024-09-05 or 2024-09-05 to 2024-09-07"
+    parts = re.split(r"\s+to\s+", dates)
+    try:
+        days = [datetime.date.fromisoformat(p) for p in parts]
+    except ValueError:
+        bad = next(p for p in parts if not _real(p))
+        return f"{bad} isn’t a real date"
+    if len(days) == 2 and days[1] < days[0]:
+        return "the end is before the start"
+    return None
+
+
+def _real(s):
+    try:
+        datetime.date.fromisoformat(s)
+        return True
+    except ValueError:
+        return False
 
 
 PHOTO_TYPES = (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".heic", ".heif", ".gif")
@@ -137,10 +166,12 @@ def problems(root=ROOT):
                     continue
                 if not meta.get("title"):
                     out.append(f"{where}: no title")
-                if meta.get("days") and not DAYS.match(meta["days"]):
-                    out.append(f"{where}: days {meta['days']!r} should be like 3 or 2-4")
-                if meta.get("dates") and not DATES.match(meta["dates"]):
-                    out.append(f"{where}: dates {meta['dates']!r} should be like 2024-09-05 or 2024-09-05 to 2024-09-07")
+                why = meta.get("days") and days_problem(meta["days"])
+                if why:
+                    out.append(f"{where}: days {meta['days']!r} {why}")
+                why = meta.get("dates") and dates_problem(meta["dates"])
+                if why:
+                    out.append(f"{where}: dates {meta['dates']!r} {why}")
                 photos = meta.get("photos", "").strip()
                 if photos.isdigit():
                     count = int(photos)

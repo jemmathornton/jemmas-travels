@@ -13,22 +13,18 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from post_file import read_post_file  # noqa: E402  (the one post parser, shared with check_data.py)
+
 ROOT = Path(os.environ.get("TRAVELS_ROOT", Path(__file__).resolve().parent.parent))
 DATA = ROOT / "data"
 SITE = ROOT / "site"
 
 
 def read_post(path: Path, trip_id: str) -> dict:
-    text = path.read_text(encoding="utf-8")
-    m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", text, re.S)
-    if not m:
+    meta, paras = read_post_file(path)
+    if meta is None:
         raise SystemExit(f"{path}: needs a header between --- lines")
-    head, body = m.groups()
-    meta = {}
-    for line in head.splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            meta[k.strip().lower()] = v.strip()
     photos = meta.get("photos", "").strip()
     if photos.isdigit():
         photo_list = [None] * int(photos)  # placeholder frames
@@ -37,7 +33,6 @@ def read_post(path: Path, trip_id: str) -> dict:
         for p in photo_list:
             if not (SITE / "photos" / trip_id / p).exists():
                 print(f"warning: {path.name}: photo {p} not found in site/photos/{trip_id}/", file=sys.stderr)
-    paras = [p.strip() for p in re.split(r"\n\s*\n", body.strip()) if p.strip()]
     return {
         "trip": trip_id,
         "slug": path.stem,
@@ -98,7 +93,7 @@ def main():
                    + json.dumps(data, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
     index = SITE / "index.html"
     html = index.read_text(encoding="utf-8")
-    for name in ("site.css", "js/icons.js", "js/data.js", "js/world.js", "js/map.js", "js/app.js"):
+    for name in ("js/family-load.js", "site.css", "js/icons.js", "js/data.js", "js/world.js", "js/map.js", "js/app.js"):
         p = SITE / name
         if p.exists():
             html = re.sub(re.escape(name) + r"\?v=[0-9a-f]+", f"{name}?v={fingerprint(p)}", html)

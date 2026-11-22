@@ -14,7 +14,8 @@ The site's pages are plain files from site/.
          {trip: "<id>" | "", newTrip: {title, from, to, countries: [codes]} (when trip is ""),
           title, days | dates, place, text, photos: [{name, data: "<base64>"}], cover: true (photo 1 becomes the trip's cover)}
          Saves data/posts/<trip>/<nn>.md and the photos as site/photos/<trip>/<nn>-<k>.jpg, checks the data and
-         rebuilds the site. Replies {ok, url} or {ok: false, problems: [...]} (and then nothing is kept).
+         rebuilds the site. Replies {ok, url} or {ok: false, problems: [...]}: then nothing is kept, whatever went wrong
+         (photos and post removed, trips.json put back byte for byte).
 POST needs the header "X-Travels: 1", which only the site itself sends, so a page from anywhere else can't write.
 
 Photos are copied, never moved: straightened (camera rotation), at most 1920 px on the longest side, saved as JPEG with
@@ -46,8 +47,12 @@ LOCK = threading.Lock()      # one save at a time, so two builds never write the
 sys.path.insert(0, str(TOOLS))
 
 
-def slug_for(trip_dir):
+def slug_for(trip_dir, photo_dir=None):
+    """The next post number: past every post and every photo already there (a post deleted by hand may leave its
+    NN-k.jpg photos behind; a new post must never overwrite them, nor a failed save delete them)."""
     nums = [int(p.stem) for p in trip_dir.glob("*.md") if p.stem.isdigit()]
+    if photo_dir is not None:
+        nums += [int(m.group(1)) for p in photo_dir.glob("*.jpg") if (m := re.fullmatch(r"(\d+)-\d+", p.stem))]
     return f"{(max(nums) + 1) if nums else 1:02d}"
 
 
@@ -90,12 +95,35 @@ def one_line(s):
     return re.sub(r"[\r\n]+", " ", str(s or "")).strip()
 
 
+def rollback(written, trips_file, trips_bytes, new_dirs):
+    """Undo a failed save: remove the photos and post written, put trips.json back byte for byte, remove folders it made.
+    Each step is tried even if an earlier one fails."""
+    for f in written:
+        try:
+            f.unlink(missing_ok=True)
+        except OSError:
+            pass
+    for _ in range(3):
+        try:
+            if trips_file.read_bytes() != trips_bytes:
+                trips_file.write_bytes(trips_bytes)
+            break
+        except OSError:
+            pass
+    for d in new_dirs:
+        try:
+            if d.exists() and not any(d.iterdir()):
+                d.rmdir()
+        except OSError:
+            pass
+
+
 def save_post(body):
     """Save a post (and a new trip if asked). Returns (status, reply dict)."""
     import check_data
     trips_file = DATA / "trips.json"
-    trips_text = trips_file.read_text(encoding="utf-8")
-    trips_doc = json.loads(trips_text)
+    trips_bytes = trips_file.read_bytes()   # restored byte for byte if the save fails
+    trips_doc = json.loads(trips_bytes.decode("utf-8"))
     trips = trips_doc["trips"]
     countries = json.loads((DATA / "countries.json").read_text(encoding="utf-8"))["countries"]
     problems = []
@@ -127,13 +155,14 @@ def save_post(body):
         return 400, {"ok": False, "problems": problems}
 
     trip_dir = DATA / "posts" / trip
-    new_dir = not trip_dir.exists()
-    slug = slug_for(trip_dir)
+    photo_dir = SITE / "photos" / trip
+    new_dirs = [d for d in (trip_dir, photo_dir) if not d.exists()]
+    slug = slug_for(trip_dir, photo_dir)
     written = []
     try:
         names = []
         for k, ph in enumerate(photos, start=1):
-            dest = SITE / "photos" / trip / f"{slug}-{k}.jpg"
+            dest = photo_dir / f"{slug}-{k}.jpg"
             try:
                 save_photo(ph.get("data", ""), dest)
             except Exception as e:  # noqa: BLE001 - say which photo, keep going no further
@@ -164,14 +193,12 @@ def save_post(body):
                            encoding="utf-8", env=dict(os.environ, TRAVELS_ROOT=str(ROOT)), timeout=300)
         if r.returncode:
             raise ValueError("the site couldn’t be rebuilt: " + (r.stderr or r.stdout)[-400:])
-    except ValueError as e:
-        for f in written:
-            f.unlink(missing_ok=True)
-        trips_file.write_text(trips_text, encoding="utf-8")   # exactly as it was
-        for d in ([trip_dir] if new_dir else []) + [SITE / "photos" / trip]:
-            if d.exists() and not any(d.iterdir()):
-                d.rmdir()
-        return 400, {"ok": False, "problems": [str(e)]}
+    except Exception as e:  # noqa: BLE001 - any failure (bad data, a build past its time limit, a disk error): keep nothing
+        rollback(written, trips_file, trips_bytes, new_dirs)
+        if isinstance(e, ValueError):
+            return 400, {"ok": False, "problems": [str(e)]}
+        what = "the rebuild took too long" if isinstance(e, subprocess.TimeoutExpired) else f"{type(e).__name__}: {e}"
+        return 500, {"ok": False, "problems": [f"Nothing was saved ({what})."]}
     return 200, {"ok": True, "trip": trip, "slug": slug, "url": f"#/trip/{trip}/{slug}"}
 
 
@@ -199,13 +226,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return (self.headers.get("Host") or "").lower() in (f"localhost:{port}", f"127.0.0.1:{port}")
 
     def family_file(self):
-        """The file for GET /family/<name>, inside FAMILY only; None if there is no such file."""
+        """The file for GET /family/<name>: a plain file name (letters, digits, - and _, one dot, a web file type), spelt exactly as a
+        file straight inside FAMILY; None otherwise. So no folders, no "mode.js." / "mode.js%20" / "mode.js::$DATA" (Windows would
+        read those as mode.js), no README.md (round 5 review: as strict as the Library's)."""
         from urllib.parse import unquote
-        name = unquote(self.path.split("?", 1)[0][len("/family/"):])
-        if not name or "\\" in name or name.startswith("/"):
+        name = unquote(self.path.split("?", 1)[0].split("#", 1)[0][len("/family/"):])
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*\.(?:js|css|svg|png|woff2)", name):
             return None
-        f = (FAMILY / name).resolve()
-        return f if f.is_file() and FAMILY in f.parents else None
+        try:
+            if name not in os.listdir(FAMILY):
+                return None
+        except OSError:
+            return None
+        f = FAMILY / name
+        return f if f.is_file() else None
 
     def send_family(self, head_only=False):
         f = self.family_file()
@@ -242,7 +276,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self.reply(404, {"ok": False, "problems": ["not here"]})
         if self.headers.get("X-Travels") != "1":
             return self.reply(403, {"ok": False, "problems": ["only the site itself can save posts"]})
-        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self.reply(400, {"ok": False, "problems": ["couldn’t read what was sent"]})
         if n <= 0 or n > MAX_BODY:
             return self.reply(413, {"ok": False, "problems": ["too much to save at once"]})
         try:

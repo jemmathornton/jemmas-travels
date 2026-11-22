@@ -11,7 +11,8 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 
 const LOCAL = 'http://localhost:8099/', ONLINE = 'https://travels.test/';
 // the family's shared code (/family/…), one copy in Jemma's Journals: travels/tests/e2e → JemmasJournals/site/family
 const FAMILY = path.resolve(__dirname, '..', '..', '..', 'site', 'family');
-const WIDTHS = [[1600, 1000, false], [1280, 800, false], [1024, 768, false], [950, 800, false], [390, 844, true]];   // 950: the sidebar beside a narrow page (round-2 review)
+// 950: the sidebar beside a narrow page (round-2 review); 901 and 899: either side of the Menu line (round 5 review; kept last so WIDTHS[4] is the phone)
+const WIDTHS = [[1600, 1000, false], [1280, 800, false], [1024, 768, false], [950, 800, false], [390, 844, true], [901, 800, false], [899, 800, false]];
 
 let browser;
 const TESTS = [];
@@ -230,9 +231,9 @@ if (SUITE === 'her') {
     await page.reload({ waitUntil: 'networkidle' });
     eq(await page.evaluate(() => [document.documentElement.dataset.mode, localStorage.getItem('jj-mode'), localStorage.getItem('jt-mode')]), ['dark', 'dark', null]);
     // the family's mode script runs before the stylesheets (no flash of light), with Travels' old key
-    const order = await page.evaluate(() => { const h = document.head.innerHTML, m = h.indexOf('<script src="/family/mode.js" data-old-key="jt-mode">');
-      return m > 0 && m < h.indexOf('family.css') && h.indexOf('family.css') < h.indexOf('site.css'); });
-    ok(order, 'the family mode script, then family.css, then site.css');
+    // (js/family-load.js writes the three family tags in place: round 5 review)
+    const order = await page.evaluate(() => [...document.head.querySelectorAll('script[src], link[rel=stylesheet]')].map(e => (e.getAttribute('src') || e.getAttribute('href')).split('?')[0] + (e.dataset.oldKey ? ' ' + e.dataset.oldKey : '') + (e.defer ? ' defer' : '')));
+    eq(order, ['js/family-load.js', '/family/mode.js jt-mode', '/family/family.css', '/family/family.js defer', 'site.css'], 'the family mode script, then family.css, then site.css:');
     await page.evaluate(() => localStorage.clear());
     await page.close2();
   });
@@ -350,6 +351,33 @@ if (SUITE === 'her') {
     await f.goto('file:///' + path.resolve(SITE, 'index.html').split(path.sep).join('/') + '#/');
     eq(await f.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '../../site/index.html', 'as a file:');
     await ctx.close();
+  });
+
+  test('opened as a file: the family code comes from ../../site/family/ with no failed requests or console errors, and dark is set before the page draws (round 5 review)', async () => {
+    // laid out as on her PC, in a folder of its own: <tmp>/travels/site (this copy) beside <tmp>/site/family (the family's code)
+    const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'travels-file-')), here = path.join(tmp, 'travels', 'site');
+    fs.cpSync(SITE, here, { recursive: true }); fs.cpSync(FAMILY, path.join(tmp, 'site', 'family'), { recursive: true });
+    try {
+      for (const mode of ['dark', 'light']) {
+        const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+        await ctx.addInitScript(m => {
+          try { if (!sessionStorage.getItem('set')) { localStorage.setItem('jj-mode', m); sessionStorage.setItem('set', '1'); } } catch (e) {}
+          document.addEventListener('DOMContentLoaded', () => { window.__atDcl = [document.documentElement.dataset.mode, typeof window.JJFamily]; });
+        }, mode);
+        const f = await ctx.newPage(), bad = [];
+        f.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') bad.push(m.type() + ': ' + m.text()); });
+        f.on('pageerror', e => bad.push(e.message)); f.on('requestfailed', r => bad.push('failed ' + r.url()));
+        const url = 'file:///' + path.join(here, 'index.html').split(path.sep).join('/');
+        await f.goto(url + '#/'); await f.reload(); await f.waitForLoadState('load');   // the reload: the saved mode is there from the start
+        const r = await f.evaluate(() => ({ atDcl: window.__atDcl, btn: document.querySelector('#modeBtn').textContent.trim(),
+          fam: [...document.head.querySelectorAll('script[src*="family"], link[href*="family"]')].map(e => e.getAttribute('src') || e.getAttribute('href')) }));
+        eq(r.atDcl, [mode, 'object'], mode + ': at DOMContentLoaded (mode, JJFamily):');
+        eq(r.btn, mode === 'dark' ? 'Light mode' : 'Dark mode', mode + ': footer button');
+        eq(r.fam.slice(1), ['../../site/family/mode.js', '../../site/family/family.css', '../../site/family/family.js'], mode + ': family files');
+        eq(bad, [], mode + ': console / failed requests');
+        await ctx.close();
+      }
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
 
   test('Map page tracker: bars drawn and figures inside the card between 900 and 1100px (round-2 review)', async () => {
@@ -610,6 +638,92 @@ if (SUITE === 'her') {
       eq(snap.split(r.name).length - 1, 1, `accessible name of “${r.name}” once in ${JSON.stringify(snap)}:`);
     }
     ok(cut && whole, `want at least one cut and one whole trip name in 2026 at 1600 (cut ${cut}, whole ${whole})`);
+    eq(page.errors, [], 'page errors');
+    await page.close2();
+  });
+
+  test('sidebar: country names and the year/continent openers also show their full name on hover when cut (round 5 review)', async () => {
+    const page = await open({ width: 1000, height: 800, hash: '#/continent/Europe' });
+    const long = 'Bosnia and Herzegovina and the Democratic Republic of Somewhere';
+    for (const sel of ['#nav a.kid2[href^="#/country/"]', '#nav a.kid[href^="#/continent/"]', '#nav a.kid[href^="#/year/"]']) {
+      if (sel.includes('year')) { await go(page, '#/year/2026'); }
+      const a = page.locator(sel).first();
+      eq(await a.evaluate(el => { el.removeAttribute('title'); return el.title; }), '', sel + ' starts without a title');
+      await page.mouse.move(0, 0); await a.hover();
+      eq(await a.getAttribute('title'), null, sel + ': a whole name gets no title');
+      await a.evaluate((el, t) => { el.querySelector('span').textContent = t; }, long);   // as if she had a country with a long name
+      await page.mouse.move(0, 0); await a.hover();
+      eq(await a.getAttribute('title'), long, sel + ': a cut name shows in full');
+    }
+    eq(page.errors, [], 'page errors');
+    await page.close2();
+  });
+
+  test('Not found: body[data-page] is "notfound" for every address that shows Not found, extra parts too (round 5 review)', async () => {
+    const page = await open();
+    const bad = [];
+    for (const h of ['#/stats/x', '#/map/x', '#/trips/x', '#/trip/nope', '#/trip/italy-2026/99', '#/trip/italy-2026/01/x', '#/country/ZZ', '#/continent/Atlantis', '#/nothing-here', '#/stats/%E0%A4%A']) {
+      await go(page, h);
+      const r = await page.evaluate(() => [document.querySelector('#view h1')?.textContent, document.body.dataset.page]);
+      if (r[0] !== 'Not found' || r[1] !== 'notfound') bad.push(`${h}: ${r.join(' / ')}`);
+    }
+    await go(page, '#/stats'); eq(await page.evaluate(() => document.body.dataset.page), 'stats', 'a real page:');
+    ok(!bad.length, bad.join(', '));
+    await page.close2();
+  });
+
+  test('landmarks: the footer is beside <main>, not inside it; the post page navs have names (round 5 review, axe)', async () => {
+    const page = await open({ hash: '#/trip/italy-2026/02' });
+    const r = await page.evaluate(() => ({ mains: document.querySelectorAll('main').length, footInMain: !!document.querySelector('main footer, main [role=contentinfo]'),
+      view: document.querySelector('main')?.id, navs: [...document.querySelectorAll('nav')].map(n => n.getAttribute('aria-label')) }));
+    eq([r.mains, r.footInMain, r.view], [1, false, 'view'], 'one <main> (the page), footer outside:');
+    ok(r.navs.every(Boolean) && new Set(r.navs).size === r.navs.length, 'every nav named, all different: ' + JSON.stringify(r.navs));
+    ok(r.navs.includes('Breadcrumb') && r.navs.includes('Posts'), JSON.stringify(r.navs));
+    await page.close2();
+  });
+
+  test('phone: Back returns to the same place on the page at once, a new page starts at the top (round 5 phone review)', async () => {
+    const page = await open({ width: 390, height: 844, phone: true, hash: '#/trips' });
+    await page.evaluate(() => window.scrollTo(0, 1500)); await page.waitForTimeout(250);
+    const y = await page.evaluate(() => Math.round(scrollY)); ok(y > 1000, 'the Trips page is long enough to scroll: ' + y);
+    const link = page.locator('.trip-card h3 a').filter({ visible: true }).last();
+    const href = await link.getAttribute('href'); await link.scrollIntoViewIfNeeded(); await page.waitForTimeout(50);
+    const before = await page.evaluate(() => Math.round(scrollY));
+    await link.click(); await page.waitForFunction(h => location.hash === h, href);
+    eq(await page.evaluate(() => Math.round(scrollY)), 0, 'a new page starts at the top:');
+    await page.evaluate(() => history.back());
+    await page.waitForFunction(() => location.hash === '#/trips');
+    const at = await page.evaluate(() => new Promise(res => requestAnimationFrame(() => res(Math.round(scrollY)))));   // the first frame after Back
+    ok(Math.abs(at - before) <= 2, `back at ${at}, was at ${before}`);
+    await page.close2();
+  });
+
+  test('phone: tapping the magnifier types in the search box; fields are 16px (no iPhone zoom); breadcrumbs 24px tall; safe areas padded (round 5 phone review)', async () => {
+    const page = await open({ width: 390, height: 844, phone: true, hash: '#/search' });
+    await page.click('#menuBtn'); await page.waitForTimeout(400);
+    const icon = await page.locator('.nav-search svg').boundingBox();
+    await page.mouse.click(icon.x + icon.width / 2, icon.y + icon.height / 2);
+    eq(await page.evaluate(() => document.activeElement.matches('.nav-search input')), true, 'magnifier focuses the sidebar search:');
+    const h = await page.evaluate(() => [document.querySelector('.nav-search input').getBoundingClientRect().height, document.querySelector('.nav-search').getBoundingClientRect().height]);
+    ok(h[0] >= h[1] - 4, `typing area ${h[0]}px in a ${h[1]}px box`);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+    const sizes = await page.evaluate(() => [...document.querySelectorAll('input:not([type=checkbox]), select, textarea')].map(e => [e.name || e.className || e.tagName, getComputedStyle(e).fontSize]));
+    ok(sizes.length && sizes.every(([, s]) => parseFloat(s) >= 16), 'fields under 16px: ' + JSON.stringify(sizes.filter(([, s]) => parseFloat(s) < 16)));
+    if (await page.evaluate(() => !!document.querySelector('#nav a[href="#/write"]'))) {
+      await go(page, '#/write');
+      const w = await page.evaluate(() => [...document.querySelectorAll('.write input:not([type=checkbox]):not([type=file]), .write select, .write textarea')].map(e => [e.name || e.id, getComputedStyle(e).fontSize]));
+      ok(w.length && w.every(([, s]) => parseFloat(s) >= 16), 'Write fields under 16px: ' + JSON.stringify(w.filter(([, s]) => parseFloat(s) < 16)));
+      const ticks = await page.evaluate(() => [...document.querySelectorAll('.write label.tick')].map(l => l.getBoundingClientRect().height).filter(x => x > 0));   // shown ones (the new-trip countries are hidden until asked for)
+      ok(ticks.every(x => x >= 24), 'tick rows under 24px: ' + ticks);
+    }
+    await go(page, '#/trip/italy-2026/02');
+    const crumbs = await page.evaluate(() => [...document.querySelectorAll('.crumbs a')].map(a => a.getBoundingClientRect().height));
+    ok(crumbs.length && crumbs.every(x => x >= 24), 'breadcrumb links: ' + crumbs);
+    await go(page, '#/trip/italy-2026');
+    const more = await page.evaluate(() => [...document.querySelectorAll('a.more')].map(a => a.getBoundingClientRect().height));
+    ok(more.length && more.every(x => x >= 24), 'Read post links: ' + more);
+    const css = fs.readFileSync(path.join(SITE, 'site.css'), 'utf8');
+    for (const side of ['top', 'left', 'right']) ok(css.includes(`env(safe-area-inset-${side})`), 'no safe-area padding: ' + side);
     eq(page.errors, [], 'page errors');
     await page.close2();
   });
@@ -940,6 +1054,27 @@ if (SUITE === 'fixture') {
       await go(page, '#/trip/' + id);
       eq(await page.evaluate(() => [document.querySelector('.route-meta .dk')?.textContent, document.querySelector('.route-meta .dist')?.textContent]), ['Distance', want], id);
     }
+    await page.close2();
+  });
+
+  test('a trip with a place named in only some of its countries: the route and distance include the others (round 5 review: "Canada and Boston")', async () => {
+    const page = await open({ hash: '#/trip/italy-france-2020' });
+    const r = await page.evaluate(() => { const t = TRAVELS.trips.find(x => x.id === 'italy-france-2020'); return { stops: tripStops(t), route: tripRoute(t).length }; });
+    eq(r.stops, [[42.8, 12.5], [45.76, 4.84]], 'Italy’s own point (no place named there), then Lyon:');
+    eq(r.route, 4, 'home, Italy, Lyon, home:');
+    await go(page, '#/timeline');
+    ok(await page.evaluate(() => [...document.querySelectorAll('.tl-trip')].some(li => li.querySelector('h3 a').getAttribute('href') === '#/trip/italy-france-2020' && /about 3,100 km/.test(li.querySelector('.meta').textContent))), 'timeline says about 3,100 km');
+    await page.close2();
+  });
+
+  test('photo counts are real photos only: "Photo to come" frames are not counted (round 5 review)', async () => {
+    const page = await open({ hash: '#/trip/paris-2026' });
+    eq(await page.evaluate(() => document.querySelector('.trip-head .meta').textContent), '2 posts · 4 photos', 'Paris (4 real photos, a post with none):');
+    await go(page, '#/trip/fiji-nz-2027');
+    eq(await page.evaluate(() => document.querySelector('.trip-head .meta').textContent), '1 post · No photos yet', 'Fiji (2 frames, no photos):');
+    await go(page, '#/');
+    const tiles = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.post-tile')].map(t => [t.querySelector('h3 a').getAttribute('href'), t.querySelector('.meta').textContent.split(' · ').pop()])));
+    for (const [href, want] of [['#/trip/fiji-nz-2027/01', 'No photos yet'], ['#/trip/paris-2026/01', '4 photos'], ['#/trip/paris-2026/02', 'No photos yet']]) if (href in tiles) eq(tiles[href], want, href);
     await page.close2();
   });
 
