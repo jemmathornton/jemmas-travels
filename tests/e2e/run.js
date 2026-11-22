@@ -255,7 +255,7 @@ if (SUITE === 'her') {
             balance: /balance/.test(getComputedStyle(ps[1]).textWrap || '') || getComputedStyle(ps[1]).textWrapStyle === 'balance' };
         });
         const want = { footers: 1, order: ['jj-name', 'data-jj-line1', 'data-jj-credits', 'jj-foot-links'], name: 'Jemma’s Travels', italic: 'normal',
-          line1: 'No cookies, no tracking, no ads. Made with HTML, CSS and JavaScript, kept on GitHub.',
+          line1: 'No cookies, no tracking, no ads. Made with HTML, CSS, JavaScript and Python, kept on GitHub.',
           credits: ['Photos are my own', 'Country shapes from Natural Earth', 'Fonts: Instrument Serif and Manrope', 'Icons by Lucide'], capitals: true,
           rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false, seps: true, accent: true, balance: true };
         for (const k in want) if (JSON.stringify(r[k]) !== JSON.stringify(want[k])) bad.push(`${h} ${k}: ${JSON.stringify(r[k])}`);
