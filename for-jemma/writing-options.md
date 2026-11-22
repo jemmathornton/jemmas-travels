@@ -22,7 +22,7 @@ The Write page in the screenshots (look A, “Write”). Pick the trip, type the
 
 ## 3. A drop folder
 
-A folder, say `Documents\Travels\new-posts`. For each post you put in the photos and a Notepad file with your words. Your laptop’s little server notices them within a few minutes and turns them into a post (the Library already does this with StoryGraph exports from Downloads).
+A folder, say `Documents\JemmasJournals\travels\new-posts`. For each post you put in the photos and a Notepad file with your words. Your laptop’s little server notices them within a few minutes and turns them into a post (the Library already does this with StoryGraph exports from Downloads).
 
 - Nothing to open: just save files.
 - If the folder is in OneDrive, you could even add notes and photos from your phone while you’re away.

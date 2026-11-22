@@ -233,7 +233,7 @@ function pageTrips(y) {
 function pageTripsByCountry() {
   const conts = CONTINENTS();
   return head("Trips", `${plural(VISITED.length, "country", "countries")} · ${plural(conts.length, "continent")}`, tripTabs("country") +
-      `<div class="filters">${conts.map(k => `<a class="fchip" href="#/trips/by-country" onclick="event.preventDefault();document.getElementById('k-${k.replace(/\W/g, "")}').scrollIntoView()">${esc(k)}</a>`).join("")}</div>`) +
+      `<div class="filters">${conts.map(k => `<a class="fchip" href="#/trips/by-country" data-jump="k-${k.replace(/\W/g, "")}">${esc(k)}</a>`).join("")}</div>`) +
     conts.map(k => {
       const cs = VISITED.filter(c => country(c).continent === k).sort((x, y) => country(x).name.localeCompare(country(y).name));
       return `<section class="year-group" id="k-${k.replace(/\W/g, "")}"><h2 class="year-h"><a href="#/continent/${encodeURIComponent(k)}">${esc(k)}</a><small>${plural(cs.length, "country", "countries")}</small></h2>
@@ -431,8 +431,17 @@ let picked = [];
 function wireWrite() {
   const f = $("#writeForm"); if (!f) return;
   picked = [];
-  const server = fetch("api/ping").then(r => r.ok ? r.json() : {}).then(j => j.ok === true).catch(() => false);
-  server.then(ok => { if (!ok) { $("#wServer").innerHTML = `${icon("info")}To save, open the site from its own server: in Claude, start the “travels” preview (or run <code>python tools/serve.py</code>).`; $("#saveBtn").disabled = true; } });
+  // Save stays off until the save server answers (round 3 review: through the family server a stopped one takes seconds to say so)
+  $("#saveBtn").disabled = true;
+  fetch("api/ping", { cache: "no-store" })
+    .then(r => r.ok && /json/.test(r.headers.get("Content-Type") || "") ? r.json().then(j => j.ok === true ? "ok" : "no") : r.status === 503 ? "off" : "no")
+    .catch(() => "no").then(state => {
+      if ($("#writeForm") !== f) return;   // she has gone to another page
+      if (state === "ok") { $("#saveBtn").disabled = false; return; }
+      $("#wServer").innerHTML = state === "off"
+        ? `${icon("info")}The Travels save server isn’t running. It starts by itself: reload this page in a moment (or run <code>python tools/serve.py</code>).`
+        : `${icon("info")}To save, open the site from its own server: in Claude, start the “travels” preview (or run <code>python tools/serve.py</code>).`;
+    });
   f.trip.onchange = () => { f.querySelector(".newtrip").hidden = f.trip.value !== ""; };
   const show = () => {
     $("#picked").innerHTML = picked.map((p, i) => `<li><img src="${p.url}" alt=""><span>${i + 1}</span><button type="button" data-i="${i}" aria-label="Remove photo ${i + 1}">${icon("x")}</button></li>`).join("");
@@ -456,7 +465,9 @@ function wireWrite() {
       body.photos = await Promise.all(picked.map(p => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok({ name: p.file.name, data: r.result }); r.onerror = no; r.readAsDataURL(p.file); })));
       msg.textContent = "Saving…";
       const res = await fetch("api/post", { method: "POST", headers: { "Content-Type": "application/json", "X-Travels": "1" }, body: JSON.stringify(body) });
-      const out = await res.json();
+      // the server answers in JSON; anything else (the family server's page when the save server is off) is said plainly
+      const out = /json/.test(res.headers.get("Content-Type") || "") ? await res.json()
+        : { ok: false, problems: [res.status === 503 ? "the Travels save server isn’t running (reload the page in a moment and try again)." : `the server answered ${res.status}.`] };
       if (!out.ok) { msg.textContent = "Not saved: " + (out.problems || []).join(" "); btn.disabled = false; return; }
       location.hash = out.url; location.reload();   // the site was rebuilt with the new post: load it fresh
     } catch (err) { msg.textContent = "Not saved: " + err; btn.disabled = false; }
@@ -478,12 +489,12 @@ function pageTimeline() {
     return `<li class="tl-year-row"><h2 class="tl-year"><a href="#/year/${y}">${y}</a></h2><ol>${ts.map(t => `<li class="tl-trip">
       <a class="tl-cover" href="#/trip/${t.id}" tabindex="-1" aria-hidden="true">${cover(t)}</a>
       <div><div class="when">${icon("calendar")}${esc(fmtRange(t))}</div><h3><a href="#/trip/${t.id}">${esc(t.title)}</a></h3>
-      <div class="chips">${chips(t.countries.filter(c => country(c).name !== t.title))}</div><div class="meta">about ${(Math.round(tripKm(t) / 100) * 100).toLocaleString("en-GB")} km there and back · ${postsOf(t.id).length ? plural(postsOf(t.id).length, "post") : "No posts yet"}</div></div></li>`).join("")}</ol></li>`;
+      <div class="chips">${chips(t.countries.filter(c => country(c).name !== t.title))}</div><div class="meta">about ${fmtKm(tripKm(t))} there and back · ${postsOf(t.id).length ? plural(postsOf(t.id).length, "post") : "No posts yet"}</div></div></li>`).join("")}</ol></li>`;
   }).join("")}</ol>`;
 }
 function pageSearch(q) {
   q = String(q || "").trim();
-  const box = `<form class="search-big" role="search" onsubmit="event.preventDefault(); location.hash = '#/search/' + encodeURIComponent(this.q.value.trim())"><input name="q" type="search" value="${esc(q)}" placeholder="A place, a country, a word from a post…" aria-label="Search"><button class="primary" type="submit">${icon("search")}Search</button></form>`;
+  const box = `<form class="search-big" role="search" data-search><input name="q" type="search" value="${esc(q)}" placeholder="A place, a country, a word from a post…" aria-label="Search"><button class="primary" type="submit">${icon("search")}Search</button></form>`;
   if (!q) return head("Search", `Trips, posts and countries`) + box;
   const norm = x => String(x || "").replace(/^\[placeholder\]/, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const words = norm(q).split(/\s+/).filter(Boolean), hit = text => words.every(w => norm(text).includes(w));
@@ -526,13 +537,17 @@ function nav(route) {
     return opener("k" + k, `#/continent/${encodeURIComponent(k)}`, "", esc(k), r === "continent" && route[1] === k, cs.length, open, "kid") +
       kids(cs.map(c => `<a href="#/country/${c}" class="kid2 ${here === c ? "on" : ""}"><span>${esc(country(c).name)}</span><small>${tripsIn(c).length}</small></a>`).join(""), open);
   }).join("");
-  const search = `<form class="nav-search" role="search" onsubmit="event.preventDefault(); location.hash = '#/search/' + encodeURIComponent(this.q.value.trim())">${icon("search")}<input name="q" type="search" placeholder="Search…" aria-label="Search trips, posts and countries" value="${r === "search" && route[1] ? esc(route[1]) : ""}"></form>`;
+  const search = `<form class="nav-search" role="search" data-search>${icon("search")}<input name="q" type="search" placeholder="Search…" aria-label="Search trips, posts and countries" value="${r === "search" && route[1] ? esc(route[1]) : ""}"></form>`;
   return `${search}<div class="nav-main">${item("#/", "home", "Home", r === "")}
     ${opener("trips", "#/trips", "plane", "Trips", r === "trips", TRIPS.length, tripsOpen)}${kids(years, tripsOpen)}
     ${opener("map", "#/map", "map", "Map", r === "map" || r === "countries", VISITED.length, mapOpen)}${kids(continents, mapOpen)}
     ${item("#/stats", "chart", "Stats", r === "stats")}${item("#/timeline", "clock", "Timeline", r === "timeline")}<a href="#/surprise" class="surprise">${icon("shuffle")}<span>Surprise me</span></a>${LOCAL ? item("#/write", "pen", "Write", r === "write") : ""}</div>`;
 }
-const navRoute = () => location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+// the address split into its parts; null if it can't be read (a broken % code: round 3 review), which shows Not found
+function routeOf(hash) {
+  try { return hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent); } catch (e) { return null; }
+}
+const navRoute = () => routeOf(location.hash) || [];
 $("#nav").addEventListener("click", e => {
   const a = e.target.closest("a[data-key]"); if (!a) return;
   const key = a.dataset.key;
@@ -540,11 +555,14 @@ $("#nav").addEventListener("click", e => {
   else { navOpen.delete("-" + key); navOpen.add(key); if (a.getAttribute("href") === location.hash) { e.preventDefault(); $("#nav").innerHTML = nav(navRoute()); } }
 });
 
+// how many parts each page's address can have (#/trip/<id>/<post> is 3); anything longer is Not found (round 3 review)
+const PARTS = { trips: 2, year: 2, trip: 3, search: 2, country: 2, continent: 2 };
 function render() {
-  const route = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const read = routeOf(location.hash), route = read || [];
   const [r, a, b] = route;
   let html;
-  if (!r) html = pageHome();
+  if (!read || route.length > (PARTS[r] || 1)) html = notFound();   // a broken address, or more parts than the page takes
+  else if (!r) html = pageHome();
   else if (r === "trips") html = a === "by-country" ? pageTripsByCountry() : a ? notFound() : pageTrips();
   else if (r === "year") html = pageTrips(a);
   else if (r === "trip") html = b ? pagePost(a, b) : pageTrip(a);
@@ -560,58 +578,53 @@ function render() {
   else html = notFound();
   $("#view").innerHTML = html;
   $("#nav").innerHTML = nav(route);
-  document.body.dataset.page = r || "home";
-  setMenu(false);
+  document.body.dataset.page = !read ? "notfound" : r || "home";
+  if (drawer) drawer.close("silent");   // a link or a search in the drawer: it closes, and focus goes to the page just below
   if (render.done) $("#view").focus({ preventScroll: true });   // after a click, keyboard and screen readers start at the new page
   render.done = true;
   if (r === "write") wireWrite();
   const t = $("#view h1"); document.title = (r && t ? t.textContent.replace("Placeholder", "").trim() + " · " : "") + "Jemma’s Travels";
   window.scrollTo(0, 0);
 }
-// the footer is in index.html (the family layout, 21 Nov); here its icons and buttons
-document.querySelector("#topBtn .ico").outerHTML = icon("arrow-up");
-// Back to top beside Dark mode (her ask, 21 Nov, as on Jemma’s Journals): to the top, and keyboard focus with it
-$("#topBtn").onclick = () => { window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); $("#view").focus({ preventScroll: true }); };
-// dark mode (the family rules, 21 Nov): light unless the footer button is pressed; one setting for all her sites, localStorage "jj-mode"
-// (index.html's head script sets data-mode before the page is drawn and moves the old "jt-mode" over once)
-const BAR = { light: "#ECF1EA", dark: "#15212C" };   // theme-color: the sidebar / top bar colour in each mode
-function setMode(m, save) {
-  document.documentElement.dataset.mode = m;
-  if (save) try { localStorage.setItem("jj-mode", m); } catch (e) {}
-  const b = $("#modeBtn");
-  b.querySelector(".ico, svg").outerHTML = icon(m === "dark" ? "sun" : "moon");
-  b.querySelector(".txt").textContent = m === "dark" ? "Light mode" : "Dark mode";
-  b.setAttribute("aria-pressed", m === "dark");
-  document.querySelector('meta[name="theme-color"]').setAttribute("content", BAR[m]);
+// the footer, Back to top and Dark mode are the family's shared code (/family/family.js, her decision 22 Nov); the dark colours are
+// Travels' own (:root[data-mode=dark] in site.css). The Menu drawer at 900px and below is the family's too, set up once family.js
+// has loaded (it is deferred): the current page's link focused on opening (Home if none), everything else inert while it's open,
+// focus to the page after a link, reset across 900px. Travels styles its own bar and drawer (site.css).
+let drawer = null;
+function startFamily() {
+  if (drawer || !window.JJFamily) return;
+  drawer = JJFamily.menu({
+    button: $("#menuBtn"), drawer: $("#side"), scrim: $("#scrim"),
+    outside: () => [$("#main"), $("#topbar"), $(".skip")],
+    current: () => $("#nav a.on") || $('#nav a[href="#/"]'),
+    main: () => $("#view"),
+  });
 }
-$("#modeBtn").onclick = () => setMode(document.documentElement.dataset.mode === "dark" ? "light" : "dark", true);
-setMode(document.documentElement.dataset.mode === "dark" ? "dark" : "light");
-// the menu on narrow screens (the family rules, 21 Nov): at 900px and below the sidebar is a drawer sliding in from the left over the page
-// (her ask, 21 Nov), Menu button on the left; closes on a link, Escape or the scrim; inert while closed; the page behind doesn't scroll
-$("#menuIco").outerHTML = icon("menu");
-const NARROW = matchMedia("(max-width: 900px)");
-function setMenu(o, back) {
-  const narrow = NARROW.matches; o = o && narrow;
-  const was = document.body.classList.contains("menu-open");
-  document.body.classList.toggle("menu-open", o);
-  document.documentElement.classList.toggle("nav-lock", o);
-  $("#menuBtn").setAttribute("aria-expanded", o);
-  $("#side").inert = narrow && !o;
-  for (const el of [$("#main"), $("#topbar"), $(".skip")]) el.inert = o;   // while open, Tab stays inside the drawer
-  if (o && !was) ($("#nav a.on") || $('#nav a[href="#/"]')).focus();   // the page you're on (Home if none), never the Journals link
-  else if (!o && was && back) $("#menuBtn").focus();
+addEventListener("DOMContentLoaded", startFamily);   // deferred scripts (family.js) have run by then
+// opened as a file on her PC, /family/ isn't there: load the family's code from Jemma's Journals beside this project instead
+if (location.protocol === "file:" && !window.JJFamily) {
+  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "../../site/family/family.css";
+  document.querySelector('link[href^="site.css"]').before(css);
+  const mode = document.createElement("script"); mode.src = "../../site/family/mode.js"; mode.async = false; mode.setAttribute("data-old-key", "jt-mode");
+  const js = document.createElement("script"); js.src = "../../site/family/family.js"; js.async = false; js.onload = startFamily;
+  document.head.append(mode, js);
 }
-$("#menuBtn").onclick = () => setMenu(!document.body.classList.contains("menu-open"), true);
-$("#scrim").onclick = () => setMenu(false, true);
-addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("menu-open")) setMenu(false, true); });
-NARROW.addEventListener("change", () => {   // crossing 900px resets the drawer; focus back on Menu if it was in the drawer
-  const inside = $("#side").contains(document.activeElement);
-  setMenu(false);
-  if (inside && NARROW.matches) $("#menuBtn").focus();
+// clicks and searches without inline handlers (so a strict Content-Security-Policy can be used online: round 3 review)
+$(".skip").addEventListener("click", e => { e.preventDefault(); $("#view").focus(); });
+document.addEventListener("submit", e => {
+  const form = e.target.closest("form[data-search]"); if (!form) return;
+  e.preventDefault(); location.hash = "#/search/" + encodeURIComponent(form.q.value.trim());
+});
+$("#view").addEventListener("click", e => {   // Trips by country: the continent chips jump to their section
+  const a = e.target.closest("a[data-jump]"); if (!a) return;
+  e.preventDefault(); document.getElementById(a.dataset.jump)?.scrollIntoView();
 });
 addEventListener("hashchange", render);
 // on her PC: if the site has been rebuilt since this page was opened, load the new version (so she never sees an old copy)
+let checked = 0;   // at most once every 10 seconds (round 3 review: it doubled the requests while she browsed)
 if (LOCAL && location.protocol.startsWith("http")) addEventListener("hashchange", () => {
+  if (Date.now() - checked < 10000) return;
+  checked = Date.now();
   fetch("index.html", { cache: "no-store" }).then(r => r.text()).then(html => {
     const now = (html.match(/js\/app\.js\?v=([0-9a-f]+)/) || [])[1], mine = ([...document.scripts].map(s => s.src).find(u => /app\.js/.test(u)) || "").split("v=")[1];
     if (now && mine && now !== mine) location.reload();

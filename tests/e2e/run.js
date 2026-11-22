@@ -9,6 +9,8 @@ const [SITE, SUITE, EXPECT_FILE, FILTER] = process.argv.slice(2);
 const EXPECT = EXPECT_FILE && fs.existsSync(EXPECT_FILE) ? JSON.parse(fs.readFileSync(EXPECT_FILE, 'utf8')) : {};
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/woff2', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const LOCAL = 'http://localhost:8099/', ONLINE = 'https://travels.test/';
+// the family's shared code (/family/…), one copy in Jemma's Journals: travels/tests/e2e → JemmasJournals/site/family
+const FAMILY = path.resolve(__dirname, '..', '..', '..', 'site', 'family');
 const WIDTHS = [[1600, 1000, false], [1280, 800, false], [1024, 768, false], [950, 800, false], [390, 844, true]];   // 950: the sidebar beside a narrow page (round-2 review)
 
 let browser;
@@ -26,8 +28,9 @@ async function open({ width = 1600, height = 1000, phone = false, host = LOCAL, 
   await page.route(host + '**', r => {
     const u = new URL(r.request().url());
     if (u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false}' });   // files only: no server behind it
-    const f = path.join(SITE, u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(1)));
-    if (!f.startsWith(path.resolve(SITE)) || !fs.existsSync(f)) return r.fulfill({ status: 404, body: 'missing' });
+    const fam = u.pathname.startsWith('/family/'), base = path.resolve(fam ? FAMILY : SITE);
+    const f = path.join(base, u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname.slice(fam ? 8 : 1)));
+    if (!f.startsWith(base) || !fs.existsSync(f)) return r.fulfill({ status: 404, body: 'missing' });
     r.fulfill({ body: fs.readFileSync(f), contentType: TYPES[path.extname(f)] || 'application/octet-stream' });
   });
   await page.goto(host + hash, { waitUntil: 'networkidle' });
@@ -179,7 +182,7 @@ if (SUITE === 'her') {
   test('phone menu slides over the page and closes outside, by Esc and a link', async () => {
     const page = await open({ width: 390, height: 844, phone: true });
     const top = () => page.evaluate(() => document.querySelector('#view').getBoundingClientRect().top);
-    const isOpen = () => page.evaluate(() => document.body.classList.contains('menu-open'));
+    const isOpen = () => page.evaluate(() => document.documentElement.classList.contains('jj-menu-open'));
     const t0 = await top();
     const btn = await page.evaluate(() => { const b = document.querySelector('#menuBtn').getBoundingClientRect(); return b.left < innerWidth / 2; });
     ok(btn, 'menu button should be on the left');
@@ -224,9 +227,10 @@ if (SUITE === 'her') {
     await page.evaluate(() => { localStorage.removeItem('jj-mode'); localStorage.setItem('jt-mode', 'dark'); });
     await page.reload({ waitUntil: 'networkidle' });
     eq(await page.evaluate(() => [document.documentElement.dataset.mode, localStorage.getItem('jj-mode'), localStorage.getItem('jt-mode')]), ['dark', 'dark', null]);
-    // the head script runs before the stylesheet (no flash of light)
-    const order = await page.evaluate(() => { const h = document.head.innerHTML; return h.indexOf('jj-mode') > 0 && h.indexOf('jj-mode') < h.indexOf('site.css'); });
-    ok(order, 'the mode script should come before the stylesheet');
+    // the family's mode script runs before the stylesheets (no flash of light), with Travels' old key
+    const order = await page.evaluate(() => { const h = document.head.innerHTML, m = h.indexOf('<script src="/family/mode.js" data-old-key="jt-mode">');
+      return m > 0 && m < h.indexOf('family.css') && h.indexOf('family.css') < h.indexOf('site.css'); });
+    ok(order, 'the family mode script, then family.css, then site.css');
     await page.evaluate(() => localStorage.clear());
     await page.close2();
   });
@@ -239,20 +243,21 @@ if (SUITE === 'her') {
       for (const h of pages) {
         await go(page, h);
         const r = await page.evaluate(() => {
-          const f = document.querySelector('.foot'), ps = [...f.querySelectorAll('.about-site p')], crs = [...ps[1].querySelectorAll('.cr')];
+          const f = document.querySelector('footer.jj-foot'), ps = [...f.querySelectorAll('p')], crs = [...ps[1].querySelectorAll('.cr')];
           const a = document.querySelector('#topBtn').getBoundingClientRect(), b = document.querySelector('#modeBtn').getBoundingClientRect();
-          return { footers: document.querySelectorAll('footer').length, order: [...f.children].map(e => e.className), name: f.querySelector('.foot-name').textContent,
-            italic: getComputedStyle(f.querySelector('.foot-name')).fontStyle, line1: ps[0].textContent, credits: crs.map(c => c.textContent),
+          return { footers: document.querySelectorAll('footer').length, order: [...f.children].map(e => e.className || [...e.attributes].map(a => a.name).find(n => n.startsWith('data-jj'))), name: f.querySelector('.jj-name').textContent,
+            italic: getComputedStyle(f.querySelector('.jj-name')).fontStyle, line1: ps[0].textContent, credits: crs.map(c => c.textContent),
             capitals: crs.every(c => /^[A-Z]/.test(c.textContent)), rows: new Set(crs.map(c => Math.round(c.getBoundingClientRect().top))).size,
             size: getComputedStyle(ps[0]).fontSize, level: Math.abs(a.top - b.top) < 2 && a.height >= 44 && b.height >= 44 && a.right < b.left,
             sideways: document.documentElement.scrollWidth > innerWidth,
-            seps: [...ps[1].querySelectorAll('.sep')].every(d => d.textContent === '\u00a0·' && d.previousElementSibling.classList.contains('cr')),
+            seps: [...ps[1].querySelectorAll('.dot')].length === 3 && [...ps[1].querySelectorAll('.dot')].every(d => d.textContent === '\u00a0·' && d.previousElementSibling.classList.contains('cr')),
+            accent: (() => { const t = document.createElement('i'); t.style.color = 'var(--accent)'; f.append(t); const c = getComputedStyle(t).color; t.remove(); return ['#topBtn', '#modeBtn'].every(x => getComputedStyle(document.querySelector(x)).color === c); })(),
             balance: /balance/.test(getComputedStyle(ps[1]).textWrap || '') || getComputedStyle(ps[1]).textWrapStyle === 'balance' };
         });
-        const want = { footers: 1, order: ['foot-name', 'about-site', 'foot-links'], name: 'Jemma’s Travels', italic: 'normal',
+        const want = { footers: 1, order: ['jj-name', 'data-jj-line1', 'data-jj-credits', 'jj-foot-links'], name: 'Jemma’s Travels', italic: 'normal',
           line1: 'No cookies, no tracking, no ads. Made with HTML, CSS and JavaScript, kept on GitHub.',
           credits: ['Photos are my own', 'Country shapes from Natural Earth', 'Fonts: Instrument Serif and Manrope', 'Icons by Lucide'], capitals: true,
-          rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false, seps: true, balance: true };
+          rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false, seps: true, accent: true, balance: true };
         for (const k in want) if (JSON.stringify(r[k]) !== JSON.stringify(want[k])) bad.push(`${h} ${k}: ${JSON.stringify(r[k])}`);
       }
       ok(!bad.length, bad.join('\n'));
@@ -276,6 +281,12 @@ if (SUITE === 'her') {
     await page.click('#menuBtn'); await page.waitForTimeout(300);
     eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(0, 0, 0, 0.45)', 'scrim black at 45%:');
     await page.keyboard.press('Escape');
+    // at night Travels keeps its own deep-blue scrim (listed under Looks in the round 3 review, for her to decide)
+    await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'dark'));
+    await page.click('#menuBtn'); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(4, 10, 16, 0.6)', 'dark scrim:');
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'light'));
     eq(await page.evaluate(() => document.getElementById('side').querySelector('a').textContent.trim()), '← Jemma’s Journals', 'first in the drawer:');
     eq(await page.evaluate(() => !!document.querySelector('.topbar .home-link')), false, 'the Journals link should not be in the bar:');
     await page.click('.topbar a.brand-bar'); await page.waitForTimeout(150);
@@ -285,7 +296,7 @@ if (SUITE === 'her') {
 
   test('family: the drawer: focus in and back, closed it is inert, page locked while open, crossing 900px resets it', async () => {
     const page = await open({ width: 390, height: 844 });
-    const isOpen = () => page.evaluate(() => document.body.classList.contains('menu-open'));
+    const isOpen = () => page.evaluate(() => document.documentElement.classList.contains('jj-menu-open'));
     const inSide = () => page.evaluate(() => document.getElementById('side').contains(document.activeElement));
     await page.click('#menuBtn'); await page.waitForTimeout(300);
     eq([await isOpen(), await inSide()], [true, true], 'open, focus inside:');
@@ -295,10 +306,10 @@ if (SUITE === 'her') {
     for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); ok(!(await inSide()), `Tab ${i + 1} reached the closed drawer`); }
     await page.click('#menuBtn'); await page.waitForTimeout(300);
     await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => [document.body.classList.contains('menu-open'), document.getElementById('side').inert, document.getElementById('main').inert,
-      document.documentElement.classList.contains('nav-lock'), document.getElementById('menuBtn').getAttribute('aria-expanded')]), [false, false, false, false, 'false'], 'after widening:');
+    eq(await page.evaluate(() => [document.documentElement.classList.contains('jj-menu-open'), document.getElementById('side').inert, document.getElementById('main').inert,
+      document.documentElement.classList.contains('jj-menu-open'), document.getElementById('menuBtn').getAttribute('aria-expanded')]), [false, false, false, false, 'false'], 'after widening:');
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => [document.body.classList.contains('menu-open'), document.getElementById('side').inert]), [false, true], 'after narrowing again:');
+    eq(await page.evaluate(() => [document.documentElement.classList.contains('jj-menu-open'), document.getElementById('side').inert]), [false, true], 'after narrowing again:');
     await page.close2();
   });
 
@@ -370,7 +381,7 @@ if (SUITE === 'her') {
     for (const mode of ['light', 'dark']) {
       const page = await open({ hash: '#/' });
       await page.evaluate(m => { localStorage.setItem('jj-mode', m); }, mode); await page.reload({ waitUntil: 'networkidle' });
-      for (const [hash, sels] of [['#/', ['.hero .kicker', '.hero .ph-text', '.hero .ph', '.stamp']], ['#/stats', ['.mcell b', '.mcell span']], ['#/trips', ['.nav a.on small', '.nav a.is-open small', '.nav a small']], ['#/trip/japan-2024/01', ['.crumbs', '.post-meta', '.note', '.about-site p']]]) {
+      for (const [hash, sels] of [['#/', ['.hero .kicker', '.hero .ph-text', '.hero .ph', '.stamp']], ['#/stats', ['.mcell b', '.mcell span']], ['#/trips', ['.nav a.on small', '.nav a.is-open small', '.nav a small']], ['#/trip/japan-2024/01', ['.crumbs', '.post-meta', '.note', '.jj-foot p']]]) {
         await go(page, hash);
         const out = await page.evaluate(sels => {
           const parse = c => { const v = c.match(/[\d.]+/g).map(Number); return c.startsWith('color(srgb') ? [v[0] * 255, v[1] * 255, v[2] * 255, v[3] ?? 1] : [v[0], v[1], v[2], v[3] ?? 1]; };
@@ -464,10 +475,110 @@ if (SUITE === 'her') {
     await page.waitForTimeout(200);
     ok(!(await page.evaluate(() => window.__hit)), 'code in the address ran');
     eq((await shown(page)).h1, 'Not found', 'a made-up year');
-    for (const r of ['#/year/1999', '#/trip/nowhere', '#/trip/japan-2024/99', '#/country/ZZ', '#/nothing', '#/trip/constructor', '#/trip/__proto__', '#/trip/toString/01', '#/country/constructor', '#/country/toString', '#/country/__proto__', '#/continent/constructor'])
+    for (const r of ['#/year/1999', '#/trip/nowhere', '#/trip/japan-2024/99', '#/country/ZZ', '#/nothing', '#/trip/constructor', '#/trip/__proto__', '#/trip/toString/01', '#/country/constructor', '#/country/toString', '#/country/__proto__', '#/continent/constructor',
+      '#/search/%E0%A4%A', '#/trip/%', '#/country/%zz', '#/year/2024/x', '#/stats/x', '#/timeline/x', '#/trip/japan-2024/01/x', '#/map/x', '#/trips/x', '#/write/x', '#/country/JP/x', '#/continent/Asia/x', '#/search/a/b'])
       { await go(page, r); eq((await shown(page)).h1, 'Not found', r); }
     eq(page.errors, [], 'page errors');
+    // a broken address after a good page: the old page doesn't stay on screen
+    await go(page, '#/stats'); await go(page, '#/search/%E0%A4%A');
+    eq([(await shown(page)).h1, await page.evaluate(() => document.body.dataset.page)], ['Not found', 'notfound'], 'broken % code after Stats:');
     await page.close2();
+  });
+
+  // ---- round 3 review (22 Nov)
+  test('family: the shared code loads from /family/ (mode.js, family.css, family.js) and runs (window.JJFamily)', async () => {
+    const page = await open({ width: 390, height: 844, phone: true });
+    const seen = [];
+    page.on('response', r => { const u = new URL(r.url()); if (u.pathname.startsWith('/family/')) seen.push(u.pathname + ' ' + r.status()); });
+    await page.reload({ waitUntil: 'networkidle' });
+    eq(seen.sort(), ['/family/family.css 200', '/family/family.js 200', '/family/mode.js 200']);
+    const r = await page.evaluate(() => ({ jj: typeof window.JJFamily === 'object' && typeof JJFamily.menu === 'function' && typeof JJFamily.mode.set === 'function',
+      mode: document.querySelector('#modeBtn').textContent.trim(), top: document.querySelector('#topBtn').textContent.trim(),
+      menu: document.querySelector('#menuBtn').textContent.trim(), links: getComputedStyle(document.querySelector('.jj-foot-links')).display,
+      theme: document.querySelector('meta[name="theme-color"]').getAttribute('data-dark') }));
+    eq(r, { jj: true, mode: 'Dark mode', top: 'Back to top', menu: 'Menu', links: 'flex', theme: '#15212C' });
+    // a search from the drawer closes it, like a link
+    await page.click('#menuBtn'); await page.waitForTimeout(300);
+    await page.fill('.nav-search input', 'japan'); await page.press('.nav-search input', 'Enter'); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => [location.hash, document.documentElement.classList.contains('jj-menu-open'), document.getElementById('side').inert]), ['#/search/japan', false, true], 'search in the drawer:');
+    eq(page.errors, [], 'page errors');
+    await page.close2();
+  });
+
+  test('Write page: Save stays off until the save server answers; a stopped one (the family server’s 503 page) is said plainly', async () => {
+    const page = await open({ width: 1280, height: 900 });
+    let release; const gate = new Promise(r => { release = r; });
+    await page.route(LOCAL + 'api/ping', async r => { await gate; r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
+    await go(page, '#/write');
+    await page.waitForTimeout(300);
+    ok(await page.evaluate(() => document.querySelector('#saveBtn').disabled), 'Save was on before the server answered');
+    release(); await page.waitForFunction(() => !document.querySelector('#saveBtn').disabled);
+    // the save server stops: the family server answers with an HTML page, which must not show as a code error
+    let posts = 0;
+    await page.route(LOCAL + 'api/post', r => { posts++; r.fulfill({ status: 503, contentType: 'text/html', body: '<!doctype html><title>Not running</title>' }); });
+    await page.selectOption('select[name=trip]', 'japan-2024');
+    await page.fill('input[name=title]', 'Test');
+    await page.click('#saveBtn');
+    await page.waitForFunction(() => /Not saved/.test(document.querySelector('#wMsg').textContent));
+    const m = await page.textContent('#wMsg');
+    ok(/isn’t running/.test(m) && !/SyntaxError|Unexpected token/.test(m), m);
+    eq([posts, await page.evaluate(() => document.querySelector('#saveBtn').disabled)], [1, false], 'one try, Save on again:');
+    // opened while the save server is off: the ping gets the family server's 503 page
+    await page.unroute(LOCAL + 'api/ping');
+    await page.route(LOCAL + 'api/ping', r => r.fulfill({ status: 503, contentType: 'text/html', body: '<!doctype html><title>Not running</title>' }));
+    await go(page, '#/'); await go(page, '#/write');
+    await page.waitForFunction(() => /isn’t running/.test(document.querySelector('#wServer').textContent));
+    ok(await page.evaluate(() => document.querySelector('#saveBtn').disabled), 'Save stays off');
+    eq(page.errors.filter(e => !/503/.test(e)), [], 'page errors');
+    await page.close2();
+  });
+
+  test('timeline distances are rounded like the trip pages (nearest 10 km)', async () => {
+    const page = await open({ hash: '#/timeline' });
+    const tl = await page.evaluate(() => [...document.querySelectorAll('.tl-trip')].map(li => [li.querySelector('h3 a').getAttribute('href'), (li.querySelector('.meta').textContent.match(/about ([\d,]+ km)/) || [])[1]]));
+    eq(tl.length, await page.evaluate(() => TRAVELS.trips.length), "every trip:");
+    const bad = [];
+    for (const [href, km] of tl) { await go(page, href); const d = await page.evaluate(() => document.querySelector('.route-meta .dist')?.textContent); if (!km || d !== km) bad.push(`${href}: timeline ${km}, trip page ${d}`); }
+    ok(!bad.length, bad.join(', '));
+    await page.close2();
+  });
+
+  test('no inline event handlers (onclick, onsubmit…) on any page; the skip link, search boxes and continent chips still work', async () => {
+    const page = await open();
+    const bad = [];
+    const inline = () => page.evaluate(() => [...document.querySelectorAll('*')].filter(e => [...e.attributes].some(a => /^on/i.test(a.name))).map(e => e.tagName.toLowerCase() + '.' + e.className));
+    if ((await inline()).length) bad.push('shell: ' + (await inline()).join(', '));
+    for (const r of [...await routes(page), '#/search', '#/search/japan', '#/timeline', '#/nothing']) { await go(page, r); const n = await inline(); if (n.length) bad.push(`${r}: ${n.join(', ')}`); }
+    ok(!bad.length, bad.slice(0, 5).join('\n'));
+    await go(page, '#/stats'); await page.focus('.skip'); await page.keyboard.press('Enter');
+    eq([await page.evaluate(() => document.activeElement.id), await page.evaluate(() => location.hash)], ['view', '#/stats'], 'skip link:');
+    await go(page, '#/search'); await page.fill('.search-big input', 'norway'); await page.press('.search-big input', 'Enter'); await page.waitForTimeout(150);
+    eq(await page.evaluate(() => location.hash), '#/search/norway', 'search page box:');
+    await page.fill('.nav-search input', 'brazil'); await page.press('.nav-search input', 'Enter'); await page.waitForTimeout(150);
+    eq(await page.evaluate(() => location.hash), '#/search/brazil', 'sidebar box:');
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await go(page, '#/trips/by-country');
+    const last = await page.evaluate(() => [...document.querySelectorAll('a.fchip[data-jump]')].pop().dataset.jump);
+    await page.click('a.fchip[data-jump]:last-of-type'); await page.waitForTimeout(200);
+    eq([await page.evaluate(() => location.hash), await page.evaluate(id => Math.abs(document.getElementById(id).getBoundingClientRect().top) < 60 || scrollY > 0, last)], ['#/trips/by-country', true], 'continent chip:');
+    eq(page.errors, [], 'page errors');
+    await page.close2();
+  });
+
+  test('every page opens without errors or sideways scrolling at 901 and 899 (either side of the Menu line)', async () => {
+    const bad = [];
+    for (const w of [901, 899]) {
+      const page = await open({ width: w, height: 800 });
+      for (const r of await routes(page)) {
+        await go(page, r);
+        const s = await shown(page);
+        if (!s.h1 || s.h1 === 'Not found') bad.push(`${w} ${r}: no page (${s.h1})`);
+        if (s.sideways > 1) bad.push(`${w} ${r}: scrolls sideways by ${s.sideways}px`);
+      }
+      if (page.errors.length) bad.push(`${w}: errors ${page.errors.slice(0, 3).join(' / ')}`);
+      await page.close2();
+    }
+    ok(!bad.length, bad.slice(0, 12).join('\n'));
   });
 
   test('latest posts on the home page are the newest trip’s newest posts', async () => {
@@ -528,7 +639,7 @@ if (SUITE === 'her') {
       const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
       const bgOf = el => { for (let e = el; e; e = e.parentElement) { const b = getComputedStyle(e).backgroundColor; const m = b.match(/[\d.]+/g); if (m && (m.length < 4 || +m[3] === 1)) return b; } return 'rgb(255,255,255)'; };   // first solid background (see-through tints skipped)
       const out = [];
-      for (const sel of ['.crumbs', '.crumbs a', '.post-meta', '.day', '.ph', '.ph-text', '.note', '.post-nav small', '.about-site p', '.nav a small', '.home-link', '.nav-h']) {
+      for (const sel of ['.crumbs', '.crumbs a', '.post-meta', '.day', '.ph', '.ph-text', '.note', '.post-nav small', '.jj-foot p', '.nav a small', '.home-link', '.nav-h']) {
         const el = document.querySelector(sel); if (!el) continue;
         const r = ratio(getComputedStyle(el).color, bgOf(el));
         if (r < 4.5) out.push(`${sel} ${r.toFixed(2)}`);
@@ -600,7 +711,7 @@ if (SUITE === 'her') {
     const count = async q => { await go(page, '#/search/' + encodeURIComponent(q)); return page.evaluate(() => ({ trips: document.querySelectorAll('#view .trip-card').length, countries: document.querySelectorAll('#view .ctile').length, posts: document.querySelectorAll('#view .post-card').length })); };
     eq(await count('norway'), { trips: 1, countries: 1, posts: 0 });
     eq(await count('Nashville'), { trips: 1, countries: 0, posts: 0 });
-    eq(await count('your notes'), { trips: 0, countries: 0, posts: 0 }, 'placeholder text');
+    eq(await count('notes go here'), { trips: 0, countries: 0, posts: 0 }, 'placeholder text');
     eq(await count('ZÜRICH xyz'), { trips: 0, countries: 0, posts: 0 });
     await go(page, '#/search');
     await page.fill('.search-big input', 'spain'); await page.press('.search-big input', 'Enter'); await page.waitForTimeout(150);

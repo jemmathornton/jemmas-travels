@@ -52,17 +52,18 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .nav a:hover, .nav a.on { background: var(--side-on); }
 .nav a.on small, .nav a.is-open small, .nav a:hover small { color: var(--ink2); }   /* counts stay readable (4.5:1) on the highlighted row */
 .nav a.on { box-shadow: inset 3px 0 0 var(--brand-em); }
-.scrim { display: none; }
+.scrim { z-index: 45; }   /* the family scrim (/family/family.css, black at 45%), under the drawer (50) and over the top bar (30) */
 
 main { min-width: 0; display: flex; flex-direction: column; }
 .wrap { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto; padding: 36px 48px 64px; }
-/* the footer: the family layout shared by all her sites (21 Nov): name, the two About lines, Back to top and Dark mode */
-.foot { text-align: center; padding: 34px 20px 40px; color: var(--muted); font-size: 12.5px; display: flex; flex-direction: column; align-items: center; gap: 8px; border-top: 1px solid var(--line); }
-.foot-name { font: 400 24px/1.1 var(--serif); color: var(--ink); }
-.about-site { line-height: 1.7; }
-.about-site p { margin: 0; text-wrap: balance; }
-.about-site .cr { white-space: nowrap; }   /* each credit stays in one piece when the line wraps */
-.about-site .sep { margin: 0 3px; color: var(--brand-em); }   /* written "credit&nbsp;· credit" (the family rule), so a dot never starts a line */
+/* the footer: the family layout (/family/family.css, the same on all her sites); Travels’ own colours and fonts through --jj-*, and its spacing */
+:root { --jj-display: var(--serif); --jj-body: var(--sans); --jj-ink: var(--ink); --jj-muted: var(--muted); --jj-accent: var(--accent); --jj-line: var(--line); --jj-drawer-bg: var(--side-bg); }
+.jj-foot { padding: 34px 20px 40px; border-top: 1px solid var(--line); }
+.jj-foot .jj-name { line-height: 1.1; margin: 0 0 8px; }
+.jj-foot .dot { color: var(--brand-em); }
+.jj-foot-links { margin-top: 10px; }
+.jj-foot-links a, .jj-foot-links button { color: var(--accent); padding: 0 2px; }
+.jj-foot-links .jj-i { width: 15px; height: 15px; }
 
 /* ---------- headings and small pieces ---------- */
 .page-head { margin-bottom: 26px; }
@@ -315,10 +316,8 @@ a.stat:hover b { color: var(--accent); }
   .brand-bar em { color: var(--brand-em); }
   .side { position: fixed; top: 0; left: 0; bottom: 0; height: auto; width: min(300px, 84vw); z-index: 50; padding: 22px 14px 24px; overscroll-behavior: contain;
     box-shadow: 0 0 40px rgba(20, 40, 40, .22); transform: translateX(-104%); transition: transform .25s ease, visibility 0s .25s; visibility: hidden; }
-  .menu-open .side { transform: none; visibility: visible; transition: transform .25s ease; }
+  .side.jj-open { transform: none; visibility: visible; transition: transform .25s ease; }
   .brand b { font-size: 32px; }
-  .menu-open .scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(0, 0, 0, .45); }   /* the family scrim: black at about 45% */
-  .nav-lock { overflow: hidden; }
   .nav a { font-size: 15px; padding: 10px 12px; }
 }
 /* ---------- phones ---------- */
@@ -371,8 +370,6 @@ label.drop { cursor: pointer; }
 .primary:disabled { opacity: .55; }
 
 /* ---------- dark mode: only when the footer button is pressed (light by default, like Jemma’s Journals) ---------- */
-.mode-btn { margin-top: 10px; align-self: center; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; font: 700 13px var(--sans); color: var(--accent); cursor: pointer; }
-.mode-btn svg { width: 15px; height: 15px; }
 :root[data-mode=dark] {   /* the Old Atlas at night (21 Nov): deep sea-blue ink, the sea dark, the land muted, visited countries still green */
   --bg: #111B24; --surface: #192631; --ink: #E4ECEF; --ink2: #C0CFD6; --muted: #98ADB8; --line: #2D3E4B;
   --accent: #7FCBB6; --brand-em: #8AD3BF; --accent2: #9CC2E6; --accent-soft: #1E3840;
@@ -384,7 +381,7 @@ label.drop { cursor: pointer; }
   color-scheme: dark;
 }
 :root[data-mode=dark] .big-map, :root[data-mode=dark] .trip-map { border-color: #5A7080; outline-color: #5A7080; }   /* the plate edge, softer at night */
-:root[data-mode=dark] .menu-open .scrim { background: rgba(4, 10, 16, .6); }
+:root[data-mode=dark] .scrim { background: rgba(4, 10, 16, .6); }   /* Travels’ own night scrim, kept (the family’s is black 45%) */
 :root[data-mode=dark] .stamp { background: var(--surface); outline-color: var(--surface); }
 :root[data-mode=dark] .day { color: var(--accent); }
 :root[data-mode=dark] .fchip.on { background: var(--ink); color: var(--bg); }
@@ -420,15 +417,6 @@ label.drop { cursor: pointer; }
 [hidden] { display: none !important; }
 .tl-cover { text-decoration: none; }
 
-/* ---------- footer: Back to top beside Dark mode, level, 44px tall ---------- */
-.foot-links { display: flex; gap: 26px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 2px; }
-.foot-links .mode-btn { margin: 0; min-height: 44px; padding: 0 2px; }
-.foot-links .mode-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
-@media (max-width: 600px) {   /* phones: the credits one per line */
-  .about-site .sep { display: none; }
-  .about-site .cr { display: block; }
-}
-
 /* ---------- a trip's route from home (on its page) ---------- */
 .worldmap .pin.home .pin-dot { fill: var(--pin-home); }
 .worldmap .pin.home .pin-halo { fill: color-mix(in srgb, var(--pin-home) 22%, transparent); }
@@ -446,7 +434,7 @@ label.drop { cursor: pointer; }
 
 /* ---------- printing a trip or post: just the words, photos and map (trial) ---------- */
 @media print {
-  .side, .topbar, .foot, .comments, .post-nav, .filters, .more, .skip, .scrim { display: none !important; }
+  .side, .topbar, .jj-foot, .comments, .post-nav, .filters, .more, .skip, .scrim { display: none !important; }
   .shell { display: block; background: none; }
   body { background: #fff; font-size: 11pt; }
   .wrap { max-width: none; padding: 0; }

@@ -288,15 +288,15 @@ const TRAVELS = {
    "title": "[placeholder] Template: One big photo at the top",
    "days": "1",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null
    ],
    "placeholder": true,
    "text": [
     "[photo 1 wide]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -305,17 +305,17 @@ const TRAVELS = {
    "title": "[placeholder] Template: A photo on the right, words beside it",
    "days": "2",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] A shorter paragraph of your notes.",
-    "[photo 1 right: [placeholder] A caption, if you want one]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] A shorter paragraph of notes.",
+    "[photo 1 right: [placeholder] A caption (optional)]",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -324,16 +324,16 @@ const TRAVELS = {
    "title": "[placeholder] Template: A tall photo on the left",
    "days": "3",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null
    ],
    "placeholder": true,
    "text": [
     "[photo 1 left tall]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -342,16 +342,16 @@ const TRAVELS = {
    "title": "[placeholder] Template: Two photos side by side, halfway down",
    "days": "4",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[photos 1-2: [placeholder] A caption, if you want one]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[photos 1-2: [placeholder] A caption (optional)]",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length."
    ]
   },
   {
@@ -360,7 +360,7 @@ const TRAVELS = {
    "title": "[placeholder] Template: Three photos in a row",
    "days": "5",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -368,9 +368,9 @@ const TRAVELS = {
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] A shorter paragraph of your notes.",
+    "[placeholder] A shorter paragraph of notes.",
     "[photos 1-3]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length."
    ]
   },
   {
@@ -379,7 +379,7 @@ const TRAVELS = {
    "title": "[placeholder] Template: Left, right, then one across the page",
    "days": "6-7",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -387,15 +387,15 @@ const TRAVELS = {
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] A shorter paragraph of your notes.",
+    "[placeholder] A shorter paragraph of notes.",
     "[photo 1 left]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[photo 2 right tall: [placeholder] A caption, if you want one]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[photo 2 right tall: [placeholder] A caption (optional)]",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
     "[photo 3 wide]",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -404,7 +404,7 @@ const TRAVELS = {
    "title": "[placeholder] Template: A mosaic of six",
    "days": "8",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -415,9 +415,9 @@ const TRAVELS = {
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
     "[photos 1-6 mosaic]",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -426,13 +426,13 @@ const TRAVELS = {
    "title": "[placeholder] Template: Words only, no photos",
    "days": "9",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [],
    "placeholder": true,
    "text": [
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -441,7 +441,7 @@ const TRAVELS = {
    "title": "[placeholder] Template: All the photos together at the end",
    "days": "10",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -454,8 +454,8 @@ const TRAVELS = {
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
@@ -464,7 +464,7 @@ const TRAVELS = {
    "title": "[placeholder] Template: A mix: one in the text, two tall, one on the right",
    "days": "11-12",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -473,23 +473,23 @@ const TRAVELS = {
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] A shorter paragraph of your notes.",
-    "[photo 1: [placeholder] A caption, if you want one]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] A shorter paragraph of notes.",
+    "[photo 1: [placeholder] A caption (optional)]",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
     "[photos 2-3 tall]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
     "[photo 4 right]",
-    "[placeholder] Your notes go here. This paragraph is long on purpose, so you can see how the words wrap around a photo placed beside them and carry on underneath once the photo ends. Write as much or as little as you like for each day.",
-    "[placeholder] A shorter paragraph of your notes."
+    "[placeholder] Notes go here. This paragraph is long on purpose, to show how the words wrap around a photo placed beside them and carry on underneath once the photo ends. A day’s notes can be any length.",
+    "[placeholder] A shorter paragraph of notes."
    ]
   },
   {
    "trip": "japan-2024",
    "slug": "01",
-   "title": "[placeholder] Your title for day 1",
+   "title": "[placeholder] Title for day 1",
    "days": "1",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -497,17 +497,17 @@ const TRAVELS = {
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] Your notes for this day go here, in your own words. A post can be one day or several days together.",
+    "[placeholder] Notes for this day go here. A post can be one day or several days together.",
     "[placeholder] A second paragraph shows how longer posts look."
    ]
   },
   {
    "trip": "japan-2024",
    "slug": "02",
-   "title": "[placeholder] Your title for days 2 to 4",
+   "title": "[placeholder] Title for days 2 to 4",
    "days": "2-4",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null,
@@ -523,17 +523,17 @@ const TRAVELS = {
   {
    "trip": "japan-2024",
    "slug": "03",
-   "title": "[placeholder] Your title for day 5",
+   "title": "[placeholder] Title for day 5",
    "days": "5",
    "dates": "",
-   "place": "[placeholder] Where you were",
+   "place": "[placeholder] Where this was",
    "photos": [
     null,
     null
    ],
    "placeholder": true,
    "text": [
-    "[placeholder] Your notes for this day go here."
+    "[placeholder] Notes for this day go here."
    ]
   }
  ]

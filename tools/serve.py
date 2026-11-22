@@ -2,7 +2,12 @@
 
     python -X utf8 tools/serve.py            (the preview "travels" in .claude/launch.json runs this)
 
-Only this computer can reach it (it listens on 127.0.0.1). The site's pages are plain files from site/.
+Only this computer can reach it (it listens on 127.0.0.1), and only by the names localhost:<port> / 127.0.0.1:<port>: a page
+elsewhere pointing its own name at this computer (DNS rebinding) gets nothing (round 3 review, as the Library's server does).
+The site's pages are plain files from site/.
+
+    GET  /family/<file>  the family's shared code (dark mode, footer, Menu drawer), from Jemma's Journals: ../site/family
+         (her decision, 22 Nov: all shared code lives in Jemma's Journals and every site loads it from /family/)
 
     GET  /api/ping   {"ok": true}: the Write page asks this to know it can save
     POST /api/post   a new post, as JSON:
@@ -32,6 +37,8 @@ ROOT = Path(os.environ.get("TRAVELS_ROOT", Path(__file__).resolve().parent.paren
 TOOLS = Path(__file__).resolve().parent
 SITE, DATA = ROOT / "site", ROOT / "data"
 PORT = int(os.environ.get("TRAVELS_PORT", "8041"))
+# the family's shared code, in Jemma's Journals (this project is its travels/ folder); tests point TRAVELS_FAMILY at it from a sandbox
+FAMILY = Path(os.environ.get("TRAVELS_FAMILY", os.path.join(Path(__file__).resolve().parent.parent, "..", "site", "family"))).resolve()
 MAX_BODY = 400_000_000       # a post with many phone photos (base64) fits; anything bigger is refused
 MAX_PHOTO = 60_000_000
 LONGEST = 1920
@@ -187,12 +194,50 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def host_ok(self):   # only this computer's own names (round 3 review)
+        port = self.server.server_address[1]
+        return (self.headers.get("Host") or "").lower() in (f"localhost:{port}", f"127.0.0.1:{port}")
+
+    def family_file(self):
+        """The file for GET /family/<name>, inside FAMILY only; None if there is no such file."""
+        from urllib.parse import unquote
+        name = unquote(self.path.split("?", 1)[0][len("/family/"):])
+        if not name or "\\" in name or name.startswith("/"):
+            return None
+        f = (FAMILY / name).resolve()
+        return f if f.is_file() and FAMILY in f.parents else None
+
+    def send_family(self, head_only=False):
+        f = self.family_file()
+        if not f:
+            return self.send_error(404)
+        data = f.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", self.guess_type(str(f)))
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(data)
+
     def do_GET(self):
+        if not self.host_ok():
+            return self.send_error(403)
         if self.path.split("?")[0] == "/api/ping":
             return self.reply(200, {"ok": True})
+        if self.path.startswith("/family/"):
+            return self.send_family()
         return super().do_GET()
 
+    def do_HEAD(self):
+        if not self.host_ok():
+            return self.send_error(403)
+        if self.path.startswith("/family/"):
+            return self.send_family(head_only=True)
+        return super().do_HEAD()
+
     def do_POST(self):
+        if not self.host_ok():
+            return self.reply(403, {"ok": False, "problems": ["not from this computer’s own address"]})
         if self.path.split("?")[0] != "/api/post":
             return self.reply(404, {"ok": False, "problems": ["not here"]})
         if self.headers.get("X-Travels") != "1":

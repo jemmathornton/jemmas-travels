@@ -5,43 +5,45 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex, noai, noimageai">
 <title>Jemma’s Travels</title>
-<meta name="theme-color" content="#ECF1EA">
+<meta name="theme-color" content="#ECF1EA" data-dark="#15212C">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<!-- light or dark (21 Nov 2026, the family rules shared by all her sites): always opens light, dark only once she presses "Dark mode" at the
-     bottom of a page; remembered in localStorage "jj-mode", one key for every site (the old "jt-mode" is moved over once).
-     Set here, before the page is drawn, so it never flashes. -->
-<script>try{var m=localStorage.getItem("jj-mode");if(m===null){m=localStorage.getItem("jt-mode");if(m)localStorage.setItem("jj-mode",m)}localStorage.removeItem("jt-mode");document.documentElement.setAttribute("data-mode",m==="dark"?"dark":"light");if(m==="dark")document.querySelector('meta[name="theme-color"]').setAttribute("content","#15212C")}catch(e){document.documentElement.setAttribute("data-mode","light")}</script>
-<link rel="stylesheet" href="site.css?v=256d32d3">
+<!-- the family's shared code, one copy in Jemma’s Journals (site/family/, her decision 22 Nov): light or dark set before the page is drawn
+     (always opens light; localStorage "jj-mode" shared by all her sites; the old "jt-mode" moved over once), the footer, Back to top and
+     the Menu drawer. Opened as a file, js/app.js loads them from ../../site/family/ instead. -->
+<script src="/family/mode.js" data-old-key="jt-mode"></script>
+<link rel="stylesheet" href="/family/family.css">
+<script src="/family/family.js" defer></script>
+<link rel="stylesheet" href="site.css?v=207794b8">
 </head>
 <body>
-<a class="skip" href="#view" onclick="event.preventDefault();document.getElementById('view').focus()">Skip to the page</a>
+<a class="skip" href="#view">Skip to the page</a>
 <!-- narrow screens (900px and below, the family rules): a slim bar with Menu on the left and the name; the sidebar becomes a drawer from the left -->
-<div class="topbar" id="topbar"><button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="side"><span class="ico" id="menuIco"></span>Menu</button><a class="brand-bar" href="#/">Jemma’s <em>Travels</em></a></div>
-<div class="scrim" id="scrim"></div>
+<div class="topbar" id="topbar"><button class="menu-btn jj-menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="side"></button><a class="brand-bar jj-bar-name" href="#/">Jemma’s <em>Travels</em></a></div>
+<div class="scrim jj-scrim" id="scrim" hidden></div>
 <div class="shell">
-  <header class="side" id="side">
+  <header class="side jj-drawer" id="side">
     <div class="side-top">
-      <a class="home-link" href="/">← Jemma’s Journals</a>
+      <a class="home-link" href="/" data-jj-home>← Jemma’s Journals</a>
       <a class="brand" href="#/"><b>Jemma’s <em>Travels</em></b></a>
     </div>
     <nav class="nav" id="nav" aria-label="Travels"></nav>
   </header>
   <main id="main">
     <div class="wrap" id="view" tabindex="-1"></div>
-    <!-- bottom of every page (21 Nov 2026, the family rules shared by all her sites, as on Jemma’s Journals): the name, the About lines
-         (line 1 the same on every site; line 2 Travels’ own credits), then Back to top and Dark/Light mode; js/app.js adds the icons and wires them -->
-    <footer class="foot" id="foot" role="contentinfo"><b class="foot-name">Jemma’s Travels</b>
-      <div class="about-site"><p>No cookies, no tracking, no ads. Made with HTML, CSS and JavaScript, kept on GitHub.</p>
-        <p><span class="cr">Photos are my own</span><span class="sep" aria-hidden="true">&nbsp;·</span> <span class="cr">Country shapes from Natural Earth</span><span class="sep" aria-hidden="true">&nbsp;·</span> <span class="cr">Fonts: Instrument Serif and Manrope</span><span class="sep" aria-hidden="true">&nbsp;·</span> <span class="cr">Icons by Lucide</span></p></div>
-      <div class="foot-links"><button class="mode-btn totop" id="topBtn" type="button"><span class="ico"></span>Back to top</button><button class="mode-btn mode-text" id="modeBtn" type="button" aria-pressed="false"><span class="ico"></span><span class="txt">Dark mode</span></button></div></footer>
+    <!-- bottom of every page: the family footer (site/family/, the same on all her sites): the name, line 1 (the same words on every site,
+         put in by family.js), Travels’ own credits, then Back to top and Dark/Light mode (family.js adds the words and icons and wires them) -->
+    <footer class="jj-foot" id="foot" role="contentinfo"><b class="jj-name">Jemma’s Travels</b>
+      <p data-jj-line1>No cookies, no tracking, no ads. Made with HTML, CSS and JavaScript, kept on GitHub.</p>
+      <p data-jj-credits><span class="cr">Photos are my own</span><span class="dot" aria-hidden="true">&nbsp;·</span> <span class="cr">Country shapes from Natural Earth</span><span class="dot" aria-hidden="true">&nbsp;·</span> <span class="cr">Fonts: Instrument Serif and Manrope</span><span class="dot" aria-hidden="true">&nbsp;·</span> <span class="cr">Icons by Lucide</span></p>
+      <div class="jj-foot-links"><a href="#top" id="topBtn" data-jj-top="#view"></a><button id="modeBtn" data-jj-mode></button></div></footer>
   </main>
 </div>
 <script src="js/icons.js?v=81c1fdc9"></script>
-<script src="js/data.js?v=de58a2da"></script>
+<script src="js/data.js?v=58b8520e"></script>
 <script src="js/world.js?v=f3c70637"></script>
 <script src="js/map.js?v=0943139c"></script>
-<script src="js/app.js?v=d79c9355"></script>
+<script src="js/app.js?v=32fe3212"></script>
 </body>
 </html>

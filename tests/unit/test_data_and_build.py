@@ -30,6 +30,18 @@ class RealData(unittest.TestCase):
                              "index.html fingerprints are stale: run tools/build.py")
 
 
+    def test_placeholder_posts_are_neutral(self):
+        """the stand-in text in placeholder posts isn't her writing, so it isn't addressed to "you" (round 3 review; her 21 Nov rule)"""
+        import re
+        bad = []
+        for trip in os.listdir(os.path.join(REAL, "data", "posts")):
+            for name in os.listdir(os.path.join(REAL, "data", "posts", trip)):
+                text = open(os.path.join(REAL, "data", "posts", trip, name), encoding="utf-8").read()
+                if re.search(r"^placeholder:\s*yes", text, re.M):
+                    bad += [f"{trip}/{name}: {line.strip()}" for line in text.splitlines() if re.search(r"\byou(r|rs|rself)?\b", line, re.I)]
+        self.assertEqual(bad, [])
+
+
 class CheckData(unittest.TestCase):
     def setUp(self):
         self.box = Sandbox().__enter__()

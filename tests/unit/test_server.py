@@ -124,6 +124,37 @@ class Http(unittest.TestCase):
         status, out = self.post({"trip": "paris-2026", "title": "x"}, header=False)
         self.assertEqual(status, 403)
 
+    def get(self, path, host=None):
+        req = urllib.request.Request(self.base + path, headers={"Host": host} if host else {})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, r.read(), r.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as e:
+            return e.code, e.read(), e.headers.get("Content-Type", "")
+
+    def test_only_this_computers_own_names(self):
+        """round 3 review: a page elsewhere pointing its own name at this computer (DNS rebinding) gets nothing"""
+        port = self.srv.server_address[1]
+        for host in (f"localhost:{port}", f"127.0.0.1:{port}"):
+            self.assertEqual(self.get("api/ping", host)[0], 200, host)
+        for host in ("evil.example", f"evil.example:{port}", "localhost:1", f"localhost.evil.example:{port}"):
+            self.assertEqual(self.get("api/ping", host)[0], 403, host)
+            self.assertEqual(self.get("", host)[0], 403, host)
+        req = urllib.request.Request(self.base + "api/post", data=b'{"trip": "chile-2026", "title": "x"}', method="POST",
+                                     headers={"Content-Type": "application/json", "X-Travels": "1", "Host": "evil.example"})
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(req)
+        self.assertEqual(e.exception.code, 403)
+
+    def test_family_shared_code(self):
+        """/family/ serves Jemma's Journals' shared code (site/family/), and nothing outside it"""
+        for name, kind in (("mode.js", "javascript"), ("family.js", "javascript"), ("family.css", "css")):
+            status, body, ctype = self.get("family/" + name)
+            self.assertEqual(status, 200, name); self.assertIn(kind, ctype); self.assertIn(b"Jemma", body)
+        for bad in ("family/", "family/nope.js", "family/../index.html", "family/%2e%2e/index.html", "family/..%2f..%2ftravels%2ftools%2fserve.py",
+                    "family/..%5c..%5ctools%5cserve.py", "family//etc/passwd"):
+            self.assertEqual(self.get(bad)[0], 404, bad)
+
     def test_saves_over_http(self):
         status, out = self.post({"trip": "chile-2026", "title": "Andes", "dates": "2026-02-01", "text": "Snow."})
         self.assertEqual(status, 200, out)
