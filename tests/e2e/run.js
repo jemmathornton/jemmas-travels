@@ -182,62 +182,11 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
-  test('phone menu slides over the page and closes outside, by Esc and a link', async () => {
-    const page = await open({ width: 390, height: 844, phone: true });
-    const top = () => page.evaluate(() => document.querySelector('#view').getBoundingClientRect().top);
-    const isOpen = () => page.evaluate(() => document.documentElement.classList.contains('jj-menu-open'));
-    const t0 = await top();
-    const btn = await page.evaluate(() => { const b = document.querySelector('#menuBtn').getBoundingClientRect(); return b.left < innerWidth / 2; });
-    ok(btn, 'menu button should be on the left');
-    await page.tap('#menuBtn'); await page.waitForTimeout(350);
-    ok(await isOpen(), 'did not open'); eq(await top(), t0, 'page moved when the menu opened:');
-    const navIn = await page.evaluate(() => document.querySelector('#side').getBoundingClientRect().left >= -1);
-    ok(navIn, 'menu did not slide in');
-    ok(await page.evaluate(() => document.getElementById('topbar').inert), 'while open the bar (under the drawer) should be inert (family rules)'); await page.keyboard.press('Escape'); await page.waitForTimeout(300); ok(!(await isOpen()), 'Esc did not close it');
-    await page.tap('#menuBtn'); await page.waitForTimeout(300); await page.tap('.scrim', { position: { x: 370, y: 600 } }); await page.waitForTimeout(300);
-    ok(!(await isOpen()), 'tapping outside did not close it');
-    await page.tap('#menuBtn'); await page.waitForTimeout(300); await page.keyboard.press('Escape'); ok(!(await isOpen()), 'Esc did not close it');
-    await page.tap('#menuBtn'); await page.waitForTimeout(300); await page.tap('#nav a[href="#/stats"]'); await page.waitForTimeout(300);
-    ok(!(await isOpen()), 'a link did not close it'); eq(await page.evaluate(() => location.hash), '#/stats');
-    await page.close2();
-  });
-
   // ---- the family rules (21 Nov, her decision for all her sites; JemmasJournals/research/family-rules.md)
-  test('family: opens light with the device set to dark; the button switches, saves jj-mode, changes the bar colour; a reload keeps it', async () => {
-    const page = await open({ hash: '#/stats' });
-    await page.emulateMedia({ colorScheme: 'dark' });
-    await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' });
-    const st = () => page.evaluate(() => [document.documentElement.dataset.mode, localStorage.getItem('jj-mode'), document.querySelector('meta[name="theme-color"]').content,
-      document.querySelector('#modeBtn').getAttribute('aria-pressed'), document.querySelector('#modeBtn').textContent.trim()]);
-    eq(await st(), ['light', null, '#ECF1EA', 'false', 'Dark mode'], 'opens light:');
-    eq(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(247, 245, 238)', 'light page:');
-    await page.click('#modeBtn');
-    eq(await st(), ['dark', 'dark', '#15212C', 'true', 'Light mode'], 'after the button:');
-    await page.reload({ waitUntil: 'networkidle' });
-    eq(await st(), ['dark', 'dark', '#15212C', 'true', 'Light mode'], 'after a reload:');
-    // another site in the family choosing light is followed here
-    await page.evaluate(() => localStorage.setItem('jj-mode', 'light')); await page.reload({ waitUntil: 'networkidle' });
-    eq((await st())[0], 'light', 'jj-mode light from elsewhere:');
-    // no dark styles follow the device setting
-    const media = await page.evaluate(() => [...document.styleSheets].flatMap(x => { try { return [...x.cssRules]; } catch (e) { return []; } })
-      .filter(r => r.media && /prefers-color-scheme/.test(r.media.mediaText)).length);
-    eq(media, 0, 'prefers-color-scheme rules:');
-    await page.close2();
-  });
 
-  test('family: her old choice (jt-mode) is kept once, moved to jj-mode; the mode is set before the page is drawn', async () => {
-    const page = await open();
-    await page.evaluate(() => { localStorage.removeItem('jj-mode'); localStorage.setItem('jt-mode', 'dark'); });
-    await page.reload({ waitUntil: 'networkidle' });
-    eq(await page.evaluate(() => [document.documentElement.dataset.mode, localStorage.getItem('jj-mode'), localStorage.getItem('jt-mode')]), ['dark', 'dark', null]);
-    // the family's mode script runs before the stylesheets (no flash of light), with Travels' old key
-    // (js/family-load.js writes the three family tags in place: round 5 review)
-    const order = await page.evaluate(() => [...document.head.querySelectorAll('script[src], link[rel=stylesheet]')].map(e => (e.getAttribute('src') || e.getAttribute('href')).split('?')[0] + (e.dataset.oldKey ? ' ' + e.dataset.oldKey : '') + (e.defer ? ' defer' : '')));
-    eq(order, ['js/family-load.js', '/family/mode.js jt-mode', '/family/family.css', '/family/family.js defer', 'site.css'], 'the family mode script, then family.css, then site.css:');
-    await page.evaluate(() => localStorage.clear());
-    await page.close2();
-  });
-
+  // ---- the family rules (21 Nov). Since 22 Nov the rules themselves (dark mode and jj-mode, the old jt-mode key, footer layout, sizes and dots,
+  // the Menu drawer at 899/901, Back to top, robots, the shared code) are tested once for every site in the parent:
+  // JemmasJournals/tests/family/family.test.js. What stays here is Travels' own: its credits, its pages, the file:// link, its search.
   const footerCheck = async (width, height, phone) => {
       const page = await open({ width, height, phone });
       const pages = await page.evaluate(() => { const t = TRAVELS.trips[0], p = TRAVELS.posts[0];
@@ -245,88 +194,23 @@ if (SUITE === 'her') {
       const bad = [];
       for (const h of pages) {
         await go(page, h);
-        const r = await page.evaluate(() => {
-          const f = document.querySelector('footer.jj-foot'), ps = [...f.querySelectorAll('p')], crs = [...ps[1].querySelectorAll('.cr')];
-          const a = document.querySelector('#topBtn').getBoundingClientRect(), b = document.querySelector('#modeBtn').getBoundingClientRect();
-          return { footers: document.querySelectorAll('footer').length, order: [...f.children].map(e => e.className || [...e.attributes].map(a => a.name).find(n => n.startsWith('data-jj'))), name: f.querySelector('.jj-name').textContent,
-            italic: getComputedStyle(f.querySelector('.jj-name')).fontStyle, line1: ps[0].textContent, credits: crs.map(c => c.textContent),
-            capitals: crs.every(c => /^[A-Z]/.test(c.textContent)), rows: new Set(crs.map(c => Math.round(c.getBoundingClientRect().top))).size,
-            size: getComputedStyle(ps[0]).fontSize, level: Math.abs(a.top - b.top) < 2 && a.height >= 44 && b.height >= 44 && a.right < b.left,
-            sideways: document.documentElement.scrollWidth > innerWidth,
-            seps: [...ps[1].querySelectorAll('.dot')].length === 3 && [...ps[1].querySelectorAll('.dot')].every(d => d.textContent === '\u00a0·' && d.previousElementSibling.classList.contains('cr')),
-            accent: (() => { const t = document.createElement('i'); t.style.color = 'var(--accent)'; f.append(t); const c = getComputedStyle(t).color; t.remove(); return ['#topBtn', '#modeBtn'].every(x => getComputedStyle(document.querySelector(x)).color === c); })(),
-            balance: /balance/.test(getComputedStyle(ps[1]).textWrap || '') || getComputedStyle(ps[1]).textWrapStyle === 'balance' };
-        });
-        const want = { footers: 1, order: ['jj-name', 'data-jj-line1', 'data-jj-credits', 'jj-foot-links'], name: 'Jemma’s Travels', italic: 'normal',
-          line1: 'No cookies, no tracking, no ads. Made with HTML, CSS, JavaScript and Python, kept on GitHub.',
-          credits: ['Photos are my own', 'Country shapes from Natural Earth', 'Fonts: Instrument Serif and Manrope', 'Icons by Lucide'], capitals: true,
-          rows: phone ? 4 : 1, size: '12.5px', level: true, sideways: false, seps: true, accent: true, balance: true };
+        const r = await page.evaluate(() => ({ footers: document.querySelectorAll('footer').length, name: document.querySelector('footer.jj-foot .jj-name').textContent,
+          credits: [...document.querySelectorAll('footer.jj-foot [data-jj-credits] .cr')].map(c => c.textContent), sideways: document.documentElement.scrollWidth > innerWidth }));
+        const want = { footers: 1, name: 'Jemma’s Travels', credits: ['Photos are my own', 'Country shapes from Natural Earth', 'Fonts: Instrument Serif and Manrope', 'Icons by Lucide'], sideways: false };
         for (const k in want) if (JSON.stringify(r[k]) !== JSON.stringify(want[k])) bad.push(`${h} ${k}: ${JSON.stringify(r[k])}`);
       }
       ok(!bad.length, bad.join('\n'));
       await page.close2();
   };
-  test('family: the footer in the family layout on several kinds of page (laptop)', () => footerCheck(1600, 1000, false));
-  test('family: the footer in the family layout on several kinds of page (phone)', () => footerCheck(390, 844, true));
+  test('family: the footer carries Travels’ own credits on several kinds of page (laptop)', () => footerCheck(1600, 1000, false));
+  test('family: the footer carries Travels’ own credits on several kinds of page (phone)', () => footerCheck(390, 844, true));
 
-  test('family: the Menu bar shows at 899px and the sidebar at 901px; Menu on the left, then the name as a link home', async () => {
-    const page = await open({ width: 901, height: 800, hash: '#/stats' });
-    const state = () => page.evaluate(() => ({ bar: getComputedStyle(document.querySelector('.topbar')).display !== 'none',
-      side: document.getElementById('side').getBoundingClientRect().left >= 0 && !document.getElementById('side').inert && getComputedStyle(document.getElementById('side')).visibility === 'visible' }));
-    eq(await state(), { bar: false, side: true }, 'at 901:');
-    await page.setViewportSize({ width: 899, height: 800 }); await page.waitForTimeout(350);
-    eq(await state(), { bar: true, side: false }, 'at 899:');
-    const r = await page.evaluate(() => { const b = document.querySelector('#menuBtn'), a = document.querySelector('.topbar a.brand-bar');
-      return [b.textContent.trim(), !!b.querySelector('svg'), b.getAttribute('aria-controls'), b.getAttribute('aria-expanded'), a.textContent, a.getAttribute('href'),
-        getComputedStyle(a.querySelector('em')).fontStyle, b.getBoundingClientRect().right <= a.getBoundingClientRect().left, b.getBoundingClientRect().height >= 44]; });
-    eq(r, ['Menu', true, 'side', 'false', 'Jemma’s Travels', '#/', 'italic', true, true]);
-    eq(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar a.brand-bar')).fontSize), '26px', 'name in the bar (the same on every site):');
-    await page.click('#menuBtn'); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(0, 0, 0, 0.45)', 'scrim black at 45%:');
-    await page.keyboard.press('Escape');
-    // at night the same family scrim, black at 45% (her ask 22 Nov; was Travels’ own deep blue at 60%)
-    await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'dark'));
-    await page.click('#menuBtn'); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(0, 0, 0, 0.45)', 'dark scrim black at 45%:');
-    await page.keyboard.press('Escape');
-    await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'light'));
-    eq(await page.evaluate(() => document.getElementById('side').querySelector('a').textContent.trim()), '← Jemma’s Journals', 'first in the drawer:');
-    eq(await page.evaluate(() => !!document.querySelector('.topbar .home-link')), false, 'the Journals link should not be in the bar:');
-    await page.click('.topbar a.brand-bar'); await page.waitForTimeout(150);
-    eq(await page.evaluate(() => location.hash), '#/');
-    await page.close2();
-  });
-
-  test('family: the drawer: focus in and back, closed it is inert, page locked while open, crossing 900px resets it', async () => {
-    const page = await open({ width: 390, height: 844 });
-    const isOpen = () => page.evaluate(() => document.documentElement.classList.contains('jj-menu-open'));
-    const inSide = () => page.evaluate(() => document.getElementById('side').contains(document.activeElement));
-    await page.click('#menuBtn'); await page.waitForTimeout(300);
-    eq([await isOpen(), await inSide()], [true, true], 'open, focus inside:');
-    eq(await page.evaluate(() => [document.getElementById('main').inert, getComputedStyle(document.documentElement).overflow, document.getElementById('menuBtn').getAttribute('aria-expanded')]), [true, 'hidden', 'true']);
-    await page.keyboard.press('Escape');
-    eq([await isOpen(), await page.evaluate(() => document.activeElement.id), await page.evaluate(() => document.getElementById('side').inert)], [false, 'menuBtn', true], 'closed:');
-    for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); ok(!(await inSide()), `Tab ${i + 1} reached the closed drawer`); }
-    await page.click('#menuBtn'); await page.waitForTimeout(300);
-    await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => [document.documentElement.classList.contains('jj-menu-open'), document.getElementById('side').inert, document.getElementById('main').inert,
-      document.documentElement.classList.contains('jj-menu-open'), document.getElementById('menuBtn').getAttribute('aria-expanded')]), [false, false, false, false, 'false'], 'after widening:');
-    await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => [document.documentElement.classList.contains('jj-menu-open'), document.getElementById('side').inert]), [false, true], 'after narrowing again:');
-    await page.close2();
-  });
-
-  test('family: the drawer opens to the page’s own link (Home if none); while open Tab stays inside; focus back on Menu when crossing 900px', async () => {
+  test('family: the drawer opens to the page’s own link on Travels’ pages (Stats, Search → Home, a trip); focus back on Menu when crossing 900px', async () => {
     const page = await open({ width: 390, height: 844, hash: '#/stats' });
     const act = () => page.evaluate(() => { const a = document.activeElement; return a === document.body ? 'body' : document.getElementById('side').contains(a) ? 'side:' + (a.getAttribute('href') || a.tagName) : (a.id || a.className || a.tagName); });
     await page.click('#menuBtn'); await page.waitForTimeout(300);
     eq(await act(), 'side:#/stats', 'opens to the Stats link:');
-    eq(await page.evaluate(() => [document.getElementById('topbar').inert, document.querySelector('.skip').inert, document.getElementById('main').inert]), [true, true, true], 'everything else inert:');
-    const bad = [];
-    for (const key of ['Tab', 'Shift+Tab']) for (let i = 0; i < 30; i++) { await page.keyboard.press(key); const a = await act(); if (!/^side:|^body$/.test(a)) bad.push(`${key} ${i + 1}: ${a}`); }
-    ok(!bad.length, 'Tab left the open drawer: ' + bad.slice(0, 4).join(', '));
     await page.keyboard.press('Escape');
-    eq(await page.evaluate(() => [document.getElementById('topbar').inert, document.querySelector('.skip').inert, document.getElementById('main').inert]), [false, false, false], 'closed, nothing inert:');
     await go(page, '#/search'); await page.click('#menuBtn'); await page.waitForTimeout(300);
     eq(await act(), 'side:#/', 'a page with no link of its own opens to Home:');
     await page.keyboard.press('Escape');
@@ -341,12 +225,7 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
-  test('family: the ← Jemma’s Journals link is at least 24px tall; opened as a file it goes to the Journals page, not the C drive', async () => {
-    const page = await open();
-    const h = await page.evaluate(() => document.querySelector('.home-link').getBoundingClientRect().height);
-    ok(h >= 24, 'Journals link is ' + h + 'px tall');
-    eq(await page.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '/', 'served: the shared address');
-    await page.close2();
+  test('family: opened as a file, ← Jemma’s Journals goes to the Journals page, not the C drive', async () => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const f = await ctx.newPage();
     await f.goto('file:///' + path.resolve(SITE, 'index.html').split(path.sep).join('/') + '#/');
     eq(await f.evaluate(() => document.querySelector('.home-link').getAttribute('href')), '../../site/index.html', 'as a file:');
@@ -516,18 +395,8 @@ if (SUITE === 'her') {
   });
 
   // ---- round 3 review (22 Nov)
-  test('family: the shared code loads from /family/ (mode.js, family.css, family.js) and runs (window.JJFamily)', async () => {
+  test('a search from the drawer closes it, like a link', async () => {
     const page = await open({ width: 390, height: 844, phone: true });
-    const seen = [];
-    page.on('response', r => { const u = new URL(r.url()); if (u.pathname.startsWith('/family/')) seen.push(u.pathname + ' ' + r.status()); });
-    await page.reload({ waitUntil: 'networkidle' });
-    eq(seen.sort(), ['/family/family.css 200', '/family/family.js 200', '/family/mode.js 200']);
-    const r = await page.evaluate(() => ({ jj: typeof window.JJFamily === 'object' && typeof JJFamily.menu === 'function' && typeof JJFamily.mode.set === 'function',
-      mode: document.querySelector('#modeBtn').textContent.trim(), top: document.querySelector('#topBtn').textContent.trim(),
-      menu: document.querySelector('#menuBtn').textContent.trim(), links: getComputedStyle(document.querySelector('.jj-foot-links')).display,
-      theme: document.querySelector('meta[name="theme-color"]').getAttribute('data-dark') }));
-    eq(r, { jj: true, mode: 'Dark mode', top: 'Back to top', menu: 'Menu', links: 'flex', theme: '#15212C' });
-    // a search from the drawer closes it, like a link
     await page.click('#menuBtn'); await page.waitForTimeout(300);
     await page.fill('.nav-search input', 'japan'); await page.press('.nav-search input', 'Enter'); await page.waitForTimeout(300);
     eq(await page.evaluate(() => [location.hash, document.documentElement.classList.contains('jj-menu-open'), document.getElementById('side').inert]), ['#/search/japan', false, true], 'search in the drawer:');
@@ -821,14 +690,10 @@ if (SUITE === 'her') {
   });
 
   // ---- 21 Nov: dark mode, tab icon, trial extras
-  test('dark mode: light at first, the footer button switches and is remembered, text still readable', async () => {
+  test('dark mode: the page goes dark and Travels’ pages draw without errors (switching and remembering: the parent’s family suite)', async () => {
     const page = await open({ hash: '#/stats' });
-    eq(await page.evaluate(() => document.documentElement.dataset.mode), 'light', 'opens light');
     await page.click('#modeBtn');
     eq(await page.evaluate(() => document.documentElement.dataset.mode), 'dark');
-    ok(/Light mode/.test(await page.textContent('#modeBtn')), 'button should offer light mode back');
-    await page.reload({ waitUntil: 'networkidle' });
-    eq(await page.evaluate(() => document.documentElement.dataset.mode), 'dark', 'remembered after reloading');
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     ok(bg !== 'rgb(247, 245, 238)', 'background should be dark: ' + bg);
     for (const r of ['#/', '#/trip/japan-2024/02', '#/countries', '#/trip/japan-2024']) {
@@ -904,17 +769,6 @@ if (SUITE === 'her') {
     eq(f, ['First time in Asia: India', 'First time in North America: Canada and Boston', 'First time in South America: Brazil and Argentina'], 'not her home continent');
     await go(page, '#/surprise'); await page.waitForTimeout(150);
     ok(/^#\/trip\//.test(await page.evaluate(() => location.hash)), 'surprise lands on a trip or post');
-    await page.close2();
-  });
-
-  test('Back to top sits beside Dark mode at the bottom and goes to the top', async () => {
-    const page = await open({ hash: '#/timeline', height: 700 });
-    const r = await page.evaluate(() => { const a = document.querySelector('#topBtn').getBoundingClientRect(), b = document.querySelector('#modeBtn').getBoundingClientRect(); return Math.abs(a.top - b.top) < 4 && a.right < b.left; });
-    ok(r, 'buttons side by side');
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.click('#topBtn'); await page.waitForTimeout(900);
-    eq(await page.evaluate(() => Math.round(scrollY)), 0, 'scrolled to the top');
-    eq(await page.evaluate(() => document.activeElement.id), 'view', 'focus at the top');
     await page.close2();
   });
 
