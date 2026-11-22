@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex, noai, noimageai">
+<!-- Content Security Policy (her decision, 22 Nov): the browser runs only this site's own files; nothing from other sites.
+     blob: pictures are the Write page's photo previews; data: is allowed for pictures only. Before any script. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'">
 <title>Jemma’s Travels</title>
 <meta name="theme-color" content="#ECF1EA" data-dark="#15212C">
 <link rel="icon" href="icon.svg" type="image/svg+xml">

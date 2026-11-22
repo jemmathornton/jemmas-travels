@@ -21,6 +21,8 @@ const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw n
 
 async function open({ width = 1600, height = 1000, phone = false, host = LOCAL, hash = '#/' } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: phone, hasTouch: phone, deviceScaleFactor: phone ? 2 : 1 });
+  // Content Security Policy breaches are noted from the very start (the CSP test reads window.__csp)
+  await ctx.addInitScript(() => { window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI} ${e.sourceFile || ''}:${e.lineNumber}`)); });
   const page = await ctx.newPage();
   page.errors = [];
   page.on('pageerror', e => page.errors.push(e.message));
@@ -563,6 +565,36 @@ if (SUITE === 'her') {
     eq([await page.evaluate(() => location.hash), await page.evaluate(id => Math.abs(document.getElementById(id).getBoundingClientRect().top) < 60 || scrollY > 0, last)], ['#/trips/by-country', true], 'continent chip:');
     eq(page.errors, [], 'page errors');
     await page.close2();
+  });
+
+  test('Content Security Policy: only the site’s own code runs; no breach on any page, light or dark, at 1600, 899 and 390, Write page photo previews included (22 Nov)', async () => {
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const bad = [];
+    for (const [w, h, phone] of [[1600, 1000, false], [899, 900, false], [390, 844, true]]) for (const mode of ['light', 'dark']) {
+      const page = await open({ width: w, height: h, phone });
+      const cspErrors = [];
+      page.on('console', m => { if (/Content.Security.Policy/i.test(m.text())) cspErrors.push(m.text()); });
+      const policy = await page.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || '');
+      ok(/script-src 'self'(;|$)/.test(policy) && /default-src 'self'/.test(policy) && !/unsafe-eval|https?:|\*/.test(policy), 'policy: ' + policy);
+      if (mode === 'dark') { await page.click('#modeBtn'); await page.waitForTimeout(100); }
+      for (const r of [...await routes(page), '#/search', '#/search/japan', '#/timeline', '#/nothing']) await go(page, r);
+      if (w < 900) { await page.click('#menuBtn'); await page.waitForTimeout(300); ok(await page.evaluate(() => document.documentElement.classList.contains('jj-menu-open')), `${w}: drawer`); await page.keyboard.press('Escape'); }
+      await go(page, '#/write');
+      await page.setInputFiles('#files', [{ name: 'a.png', mimeType: 'image/png', buffer: PNG }, { name: 'b.png', mimeType: 'image/png', buffer: PNG }]);
+      await page.waitForFunction(() => [...document.querySelectorAll('#picked img')].filter(i => i.src.startsWith('blob:') && i.naturalWidth === 1).length === 2, null, { timeout: 5000 });
+      // the policy is really on: a script slipped into the page is refused (and noted)
+      const ran = await page.evaluate(() => { window.__ran = false; const s = document.createElement('script'); s.textContent = 'window.__ran = true'; document.body.append(s); s.remove(); return window.__ran; });
+      eq(ran, false, 'an inline script ran:');
+      const seen = await page.evaluate(() => { const v = window.__csp; window.__csp = []; return v; });
+      ok(seen.some(v => v.startsWith('script-src')), 'the refused script was not noted: ' + JSON.stringify(seen));
+      const rest = seen.filter(v => !/^script-src(-elem)? inline/.test(v));
+      if (rest.length) bad.push(`${w} ${mode}: ${rest.join(' | ')}`);
+      const others = cspErrors.filter(t => !/inline script/i.test(t));
+      if (others.length) bad.push(`${w} ${mode} console: ${others.slice(0, 2).join(' | ')}`);
+      if (page.errors.filter(t => !/Content.Security.Policy/i.test(t)).length) bad.push(`${w} ${mode}: errors ${page.errors.join(' / ')}`);
+      await page.close2();
+    }
+    ok(!bad.length, bad.slice(0, 8).join('\n'));
   });
 
   test('sidebar: a trip name cut with “…” shows the full name on hover; uncut names get no tooltip; the link’s name is read once (22 Nov)', async () => {
