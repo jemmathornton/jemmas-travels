@@ -565,6 +565,23 @@ if (SUITE === 'her') {
     await page.close2();
   });
 
+  test('sidebar: a trip name cut with “…” shows the full name on hover; uncut names get no tooltip; the link’s name is read once (22 Nov)', async () => {
+    const page = await open({ hash: '#/year/2026' });
+    const links = await page.$$('#nav a.kid2[href^="#/trip/"]');
+    let cut = 0, whole = 0;
+    for (const a of links) {
+      await a.hover();
+      const r = await a.evaluate(el => { const s = el.querySelector('span'); return { name: s.textContent, cut: s.scrollWidth > s.clientWidth, title: el.getAttribute('title'), label: el.getAttribute('aria-label') }; });
+      if (r.cut) { cut++; eq(r.title, r.name, `cut name “${r.name}”: title`); } else { whole++; eq(r.title, null, `whole name “${r.name}”: title`); }
+      eq(r.label, null, 'no aria-label (the name would be read twice)');
+      const snap = await page.locator(`#nav a[href="${await a.getAttribute('href')}"]`).ariaSnapshot();
+      eq(snap.split(r.name).length - 1, 1, `accessible name of “${r.name}” once in ${JSON.stringify(snap)}:`);
+    }
+    ok(cut && whole, `want at least one cut and one whole trip name in 2026 at 1600 (cut ${cut}, whole ${whole})`);
+    eq(page.errors, [], 'page errors');
+    await page.close2();
+  });
+
   test('every page opens without errors or sideways scrolling at 901 and 899 (either side of the Menu line)', async () => {
     const bad = [];
     for (const w of [901, 899]) {

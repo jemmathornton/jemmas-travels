@@ -548,6 +548,12 @@ function routeOf(hash) {
   try { return hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent); } catch (e) { return null; }
 }
 const navRoute = () => routeOf(location.hash) || [];
+// a trip name cut with "…" shows in full on hover (her decision, 22 Nov): the title is set only while the name is actually cut,
+// and it is the same words as the link, so screen readers still read the name once
+$("#nav").addEventListener("pointerover", e => {
+  const a = e.target.closest('a.kid2[href^="#/trip/"]'), s = a && a.querySelector("span"); if (!s) return;
+  if (s.scrollWidth > s.clientWidth) a.title = s.textContent; else a.removeAttribute("title");
+});
 $("#nav").addEventListener("click", e => {
   const a = e.target.closest("a[data-key]"); if (!a) return;
   const key = a.dataset.key;
