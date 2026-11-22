@@ -256,8 +256,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.reply(status, out)
 
 
+class Server(http.server.ThreadingHTTPServer):
+    request_queue_size = 128   # the default 5 refused some files under load (round 4 review)
+
+
 def main():
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    srv = Server(("127.0.0.1", PORT), Handler)
     print(f"Jemma’s Travels at http://localhost:{PORT}  (Ctrl+C to stop)", flush=True)
     try:
         srv.serve_forever()
