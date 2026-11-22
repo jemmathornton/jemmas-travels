@@ -52,7 +52,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .nav a:hover, .nav a.on { background: var(--side-on); }
 .nav a.on small, .nav a.is-open small, .nav a:hover small { color: var(--ink2); }   /* counts stay readable (4.5:1) on the highlighted row */
 .nav a.on { box-shadow: inset 3px 0 0 var(--brand-em); }
-.scrim { z-index: 45; }   /* the family scrim (/family/family.css, black at 45%), under the drawer (50) and over the top bar (30) */
+.scrim { z-index: 45; }   /* the family scrim (/family/family.css, black at 45% in both modes, her ask 22 Nov), under the drawer (50) and over the top bar (30) */
 
 main { min-width: 0; display: flex; flex-direction: column; }
 .wrap { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto; padding: 36px 48px 64px; }
@@ -381,7 +381,6 @@ label.drop { cursor: pointer; }
   color-scheme: dark;
 }
 :root[data-mode=dark] .big-map, :root[data-mode=dark] .trip-map { border-color: #5A7080; outline-color: #5A7080; }   /* the plate edge, softer at night */
-:root[data-mode=dark] .scrim { background: rgba(4, 10, 16, .6); }   /* Travels’ own night scrim, kept (the family’s is black 45%) */
 :root[data-mode=dark] .stamp { background: var(--surface); outline-color: var(--surface); }
 :root[data-mode=dark] .day { color: var(--accent); }
 :root[data-mode=dark] .fchip.on { background: var(--ink); color: var(--bg); }

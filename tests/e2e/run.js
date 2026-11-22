@@ -281,10 +281,10 @@ if (SUITE === 'her') {
     await page.click('#menuBtn'); await page.waitForTimeout(300);
     eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(0, 0, 0, 0.45)', 'scrim black at 45%:');
     await page.keyboard.press('Escape');
-    // at night Travels keeps its own deep-blue scrim (listed under Looks in the round 3 review, for her to decide)
+    // at night the same family scrim, black at 45% (her ask 22 Nov; was Travels’ own deep blue at 60%)
     await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'dark'));
     await page.click('#menuBtn'); await page.waitForTimeout(300);
-    eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(4, 10, 16, 0.6)', 'dark scrim:');
+    eq(await page.evaluate(() => getComputedStyle(document.querySelector('#scrim')).backgroundColor), 'rgba(0, 0, 0, 0.45)', 'dark scrim black at 45%:');
     await page.keyboard.press('Escape');
     await page.evaluate(() => document.documentElement.setAttribute('data-mode', 'light'));
     eq(await page.evaluate(() => document.getElementById('side').querySelector('a').textContent.trim()), '← Jemma’s Journals', 'first in the drawer:');
