@@ -218,18 +218,8 @@ a.stat:hover b { color: var(--accent); }
 .comments { max-width: 830px; margin-top: 34px; padding: 22px 26px; }
 .comments h2 { font: 400 26px var(--serif); display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .comments h2 svg { width: 20px; height: 20px; color: var(--accent); }
-.comment-box { display: flex; gap: 10px; }
-.comment-box textarea { flex: 1; min-height: 70px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; background: var(--bg); resize: none; }
-.comment-box button { align-self: flex-end; border: 0; border-radius: 8px; padding: 9px 18px; font: 700 14px var(--sans); background: var(--line); color: var(--muted); }
 
 /* ---------- map page and countries ---------- */
-.cont-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
-.cont-cols h3 { font: 400 24px var(--serif); border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 8px; }
-.cont-cols ul { list-style: none; margin: 0; padding: 0; }
-.cont-cols li { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-.cont-cols li a { font-weight: 600; text-decoration: none; }
-.cont-cols li a:hover { color: var(--accent); }
-.cont-cols li span { color: var(--muted); }
 .tracker { display: grid; grid-template-columns: 300px 1fr; gap: 40px; align-items: center; padding: 30px 34px; }
 .tracker-box { container-type: inline-size; }
 @container (max-width: 800px) {   /* not room for the ring beside the bars (e.g. 901–1120px with the sidebar): one above the other */
@@ -347,7 +337,6 @@ a.stat:hover b { color: var(--accent); }
   .chart-sec { padding: 18px 14px; }
   .write { padding: 18px 16px; }
   .write .two { grid-template-columns: 1fr; }
-  .comment-box { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .side { transition: none !important; } }
 
@@ -459,7 +448,6 @@ label.drop { cursor: pointer; }
 .tabs a:hover:not(.on) { background: var(--side-on); }
 :root[data-mode=dark] .tabs a.on { background: var(--side-on); }
 .tabs + .filters { margin-top: 10px; }
-.year-group > .year-h:not(:has(a))::before { content: "— "; color: var(--brand-em); }
 .by-country { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 6px 24px; padding: 10px 0; border-bottom: 1px dotted var(--line); }
 .by-country h3 { font: 600 16px/1.4 var(--sans); margin: 0; }
 .by-country h3 a { text-decoration: none; color: var(--ink); }
@@ -503,7 +491,7 @@ label.drop { cursor: pointer; }
 .write label.tick { min-height: 24px; }
 @media (max-width: 900px) {
   /* text in fields 16px on phones, so iPhone Safari doesn't zoom in when one is tapped */
-  .nav-search input, .search-big input, .write input, .write select, .write textarea, .comment-box textarea { font-size: 16px; }
+  .nav-search input, .search-big input, .write input, .write select, .write textarea { font-size: 16px; }
   /* the notch and rounded corners (viewport-fit=cover): keep the bar, the drawer, the page and the footer clear of them */
   .topbar { padding-top: max(6px, env(safe-area-inset-top)); padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
   .side { padding-top: max(22px, env(safe-area-inset-top)); padding-left: max(14px, env(safe-area-inset-left)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }

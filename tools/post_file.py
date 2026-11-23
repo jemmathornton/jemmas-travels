@@ -6,6 +6,28 @@ A post is a header between --- lines ("key: value", keys in any case), then her 
 import re
 
 POST = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.S)
+# a photo marker on a line of its own ("[photo 2 right]", "[photos 3-5: caption]"), as her guide and the Write page say
+MARK_LINE = re.compile(r"^\[photos?\b.*\]$", re.I)
+
+
+def paragraphs(body):
+    """Her words as paragraphs (a blank line between them). A photo marker on a line of its own is a paragraph of its own
+    even without blank lines round it (overnight review, 23 Nov: "Lovely day.\\n[photo 2 right]\\nMore words." showed the
+    marker as text, though for-jemma/post-templates.md and the Write page only ask for a line of its own)."""
+    out = []
+    for block in re.split(r"\n\s*\n", body.strip()):
+        lines = []
+        for line in block.split("\n"):
+            if MARK_LINE.match(line.strip()):
+                if lines:
+                    out.append("\n".join(lines).strip())
+                out.append(line.strip())
+                lines = []
+            else:
+                lines.append(line)
+        if "\n".join(lines).strip():
+            out.append("\n".join(lines).strip())
+    return [p for p in out if p]
 
 
 def split_post(text):
@@ -18,8 +40,7 @@ def split_post(text):
         if ":" in line:
             k, v = line.split(":", 1)
             meta[k.strip().lower()] = v.strip()
-    paras = [p.strip() for p in re.split(r"\n\s*\n", m.group(2).strip()) if p.strip()]
-    return meta, paras
+    return meta, paragraphs(m.group(2))
 
 
 def read_post_file(path):

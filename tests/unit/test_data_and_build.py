@@ -60,6 +60,25 @@ class CheckData(unittest.TestCase):
     def test_made_up_data_is_fine(self):
         self.assertEqual(self.problems(), [])
 
+    def test_marker_on_its_own_line_without_blank_lines(self):
+        """a photo marker on a line of its own is placed even with words on the lines just above and below (overnight review,
+        23 Nov: her guide asks only for a line of its own; it showed as text), and a wrong one there is still caught"""
+        split = load(self.box, "post_file").split_post
+        meta, paras = split("---\ntitle: T\nphotos: 2\n---\nLovely day.\nStill the first.\n[photo 2 right: The harbour]\nMore words.\n\n[photos 1-2]\nLast.\n")
+        self.assertEqual(paras, ["Lovely day.\nStill the first.", "[photo 2 right: The harbour]", "More words.", "[photos 1-2]", "Last."])
+        self.assertEqual(split("---\ntitle: T\n---\nA [photo 2] in a sentence stays words.\n")[1], ["A [photo 2] in a sentence stays words."])
+        trip = json.loads(self.box.read("data/trips.json"))["trips"][0]["id"]
+        self.box.write(f"data/posts/{trip}/98.md", "---\ntitle: T\nphotos: 1\n---\nWords.\n[photo 3]\nMore.\n")
+        self.assertTrue(any("98.md" in p and "photo 3" in p for p in self.problems()))
+        r = run_tool(self.box, "build")
+        self.assertNotEqual(r.returncode, 0)
+        self.box.write(f"data/posts/{trip}/98.md", "---\ntitle: T\nphotos: 1\n---\nWords.\n[photo 1 left]\nMore.\n")
+        self.assertEqual(self.problems(), [])
+        r = run_tool(self.box, "build")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        post = next(p for p in data_js(self.box)["posts"] if p["trip"] == trip and p["slug"] == "98")
+        self.assertEqual(post["text"], ["Words.", "[photo 1 left]", "More."])
+
     def test_unknown_country(self):
         self.edit_trips(lambda ts: ts[0]["countries"].append("ZZ"))
         self.assertTrue(any("ZZ" in p for p in self.problems()))
